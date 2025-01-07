@@ -1,0 +1,13 @@
+id: ari:cloud:compass:6445cdd6-aa37-488d-9035-5561b240a8c8:component/952c48ed-2587-419e-acdd-1113cf3feea3/09ee1521-346d-42a3-bb2b-8efb31403f96
+name: BusinessAIprocessing
+description: Репозиторий для взаимодействия с моделями искусственного интеллекта в рамках обработки запросов для бизнеса
+ownerId: null
+configVersion: 1
+typeId: MACHINE_LEARNING_MODEL
+fields:
+  tier: 4
+links: []
+labels:
+  - bitbucket-import
+  - language:python
+customFields: []
