@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Login - AI Бизнес помощник</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+
+<body>
+    <!-- Include Header -->
+    {% include 'header.html' %}
+
+    <!-- Main Content -->
+    <main>
+        <div class="container">
+            <h2>Login</h2>
+
+            <form method="POST">
+                <p>
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" required autofocus>
+                </p>
+                <p>
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" required>
+                </p>
+                <p>
+                    <button type="submit">Login</button>
+                </p>
+            </form>
+        </div>
+    </main>
+</body>
+
+</html>

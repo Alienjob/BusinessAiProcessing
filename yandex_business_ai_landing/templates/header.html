@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ru">
+
+<head>
+    <!-- You can include common head elements here if needed -->
+</head>
+
+<body>
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <a href="{{ url_for('home_routes.home') }}" class="logo-link">
+                <h1>AI Бизнес помощник (v 0.1)</h1>
+            </a>
+
+            <!-- Yandex.Metrica counter -->
+            <script type="text/javascript">
+                let currentDomain = window.location.hostname;
+                let metrica_id = 0;
+                if (currentDomain == "business.t3t.online") {
+                    metrica_id = 99296238;
+                } else if (currentDomain == "business-test.t3t.online") {
+                    metrica_id = 99296281;
+                }
+                if (metrica_id != 0) {
+                    (function (m, e, t, r, i, k, a) {
+                        m[i] = m[i] || function () { (m[i].a = m[i].a || []).push(arguments) };
+                        m[i].l = 1 * new Date();
+                        k = e.createElement(t), a = e.getElementsByTagName(t)[0], k.async = 1, k.src = r, a.parentNode.insertBefore(k, a)
+                    })
+                        (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+
+                    ym(metrica_id, "init", {
+                        clickmap: true,
+                        trackLinks: true,
+                        accurateTrackBounce: true
+                    });
+                }
+            </script>
+            <noscript>
+                <div><img src="https://mc.yandex.ru/watch/{{ metrica_id }}" style="position:absolute; left:-9999px;"
+                        alt="" /></div>
+            </noscript>
+            <!-- /Yandex.Metrica counter -->
+
+            <nav>
+                <ul>
+                    {% if current_user.is_authenticated %}
+                    <li><a href="{{ url_for('file_routes.upload') }}">Загрузить фото</a></li>
+                    <li><a href="{{ url_for('personal_cabinet_routes.personal_cabinet') }}">Личный кабинет</a></li>
+                    <li><a href="{{ url_for('personal_cabinet_routes.long_operations') }}">Обращения к модели</a></li>
+                    <li><a href="{{ url_for('post_routes.control_posts') }}">Управление статьями</a></li>
+                    <li><a href="{{ url_for('user_prompts_routes.edit_prompts') }}">Настройки языковой модели</a></li>
+                    <li><a href="{{ url_for('review_routes.review_issues') }}">Инциденты с отзывами</a></li>
+                    <li><a href="{{ url_for('auth_routes.logout') }}">Выйти</a></li>
+                    {% else %}
+                    <li><a href="{{ url_for('auth_routes.login') }}">Войти</a></li>
+                    <li><a href="{{ url_for('auth_routes.register') }}">Регистрация</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </header>
+    <!-- Flash Messages -->
+    <div class="flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div id="flash-messages" data-messages='{{ messages|tojson }}'></div>
+        {% endif %}
+        {% endwith %}
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const flashContainer = document.querySelector('.flash-container');
+            const flashMessages = document.getElementById('flash-messages');
+            if (flashMessages) {
+                const messages = JSON.parse(flashMessages.getAttribute('data-messages'));
+                let index = 0;
+
+                function showNextMessage() {
+                    if (index < messages.length) {
+                        const [category, message] = messages[index];
+                        const flashDiv = document.createElement('div');
+                        flashDiv.className = `flash ${category}`;
+                        flashDiv.textContent = message;
+                        flashContainer.appendChild(flashDiv);
+
+                        setTimeout(() => {
+                            flashDiv.remove();
+                            index++;
+                            showNextMessage();
+                        }, 1000); // Show each message for 1 second
+                    }
+                }
+
+                showNextMessage();
+            }
+        });
+    </script>
+</body>
+
+</html>

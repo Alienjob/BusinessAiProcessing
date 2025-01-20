@@ -1,0 +1,48 @@
+.photo-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.photo-item {
+    display: flex;
+    border: 1px solid #ccc;
+    padding: 10px;
+    width: 100%;
+}
+
+.photo-item img {
+    max-width: 40vmin;
+    /* Changed from 20vmin to 40vmin */
+    max-height: 40vmin;
+    /* Changed from 20vmin to 40vmin */
+    height: auto;
+    width: auto;
+    object-fit: contain;
+    margin-right: 20px;
+}
+
+.post-list {
+    flex: 1;
+    width: 100%;
+    /* Take up the remaining space */
+}
+
+.post-item {
+    border-top: 1px solid #ccc;
+    padding-top: 10px;
+    margin-top: 10px;
+    width: 100%;
+}
+
+textarea {
+    width: 100%;
+    /* Make the textarea take up the full width of its container */
+    box-sizing: border-box;
+    /* Include padding and border in the element's total width and height */
+}
+
+.generate-group textarea {
+    width: 100%;
+    margin-bottom: 10px;
+}

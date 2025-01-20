@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="ru">
+
+<head>
+    <meta charset="utf-8">
+    <title>Управление статьями - AI Бизнес помощник</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/autosize@4.0.2/dist/autosize.min.js"></script>
+</head>
+
+<body>
+    <!-- Include Header -->
+    {% include 'header.html' %}
+
+    <!-- Main Content -->
+    <main>
+        <div class="container">
+            <h2>Управление загруженными фото</h2>
+            <p><a href="{{ url_for('file_routes.upload') }}" class="btn">Загрузить новые фото</a></p>
+
+            <form method="GET" action="{{ url_for('post_routes.control_posts') }}" class="filter-form">
+                <div class="filter-sort">
+                    <div class="filter-group">
+                        <label for="filter_status">Фильтр:</label>
+                        <select id="filter_status" name="filter_status">
+                            <option value="">Все изображения</option>
+                            <option value="no_posts" {% if filter_status=='no_posts' %}selected{% endif %}>Без постов
+                            </option>
+                            <option value="draft" {% if filter_status=='draft' %}selected{% endif %}>Черновики</option>
+                            <option value="published" {% if filter_status=='published' %}selected{% endif %}>
+                                Опубликованные</option>
+                        </select>
+                    </div>
+
+                    <div class="sort-group">
+                        <label for="sort_by_status">
+                            <input type="checkbox" id="sort_by_status" name="sort_by_status" value="on" {% if
+                                sort_by_status=='on' %}checked{% endif %}>
+                            Сортировать по статусу
+                        </label>
+                    </div>
+
+                    <div class="sort-group">
+                        <label for="sort_by_publishing_time">
+                            <input type="checkbox" id="sort_by_publishing_time" name="sort_by_publishing_time"
+                                value="on" {% if sort_by_publishing_time=='on' %}checked{% endif %}>
+                            Сортировать по времени публикации
+                        </label>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="submit" class="btn">Применить</button>
+                    </div>
+                </div>
+            </form>
+
+            <div class="photo-list">
+                {% for file in files %}
+                <div class="photo-item">
+                    <div class="image-container">
+                        <img src="{{ file.url.replace('http://', 'https://') }}" alt="{{ file.original_name }}">
+                        <div class="image-info">
+                            <p><strong>Имя:</strong> {{ file.original_name }}</p>
+                            <p><strong>Загружено:</strong> {{ file.upload_time.strftime('%Y-%m-%d %H:%M') }}</p>
+                        </div>
+                        <form method="POST" action="{{ url_for('post_routes.delete_image', id=file.id) }}"
+                            class="delete-image-form" onsubmit="saveScrollPosition()">
+                            <button type="submit" class="btn btn-danger">Удалить изображение</button>
+                        </form>
+                    </div>
+                    <div class="post-list">
+                        {% if file.posts %}
+                        {% for post in file.posts %}
+                        <div class="post-item">
+                            <form method="POST" action="{{ url_for('post_routes.control_posts') }}" class="post-form"
+                                onsubmit="saveScrollPosition()">
+                                <div class="post-controls">
+                                    <div class="post-info">
+                                        <p><strong>Статус:</strong> {{ post.status }}</p>
+                                        <p><strong>Создано:</strong> {{ post.created_time.strftime('%Y-%m-%d %H:%M') }}
+                                        </p>
+                                    </div>
+                                    <div class="post-actions">
+                                        <input type="hidden" name="file_id" value="{{ file.id }}">
+                                        <input type="hidden" name="post_id" value="{{ post.id }}">
+                                        <select id="status_{{ post.id }}" name="status">
+                                            <option value="draft" {% if post.status=='draft' %}selected{% endif %}>
+                                                Черновик
+                                            </option>
+                                            <option value="published" {% if post.status=='published' %}selected{% endif
+                                                %}>
+                                                Опубликовано</option>
+                                        </select>
+                                        <input type="datetime-local" id="posting_time_{{ post.id }}" name="posting_time"
+                                            value="{{ post.posting_time.strftime('%Y-%m-%dT%H:%M') if post.posting_time else '' }}">
+                                        <button type="submit" class="btn">Сохранить пост</button>
+                                        <button type="submit"
+                                            formaction="{{ url_for('post_routes.delete_post', id=post.id) }}"
+                                            class="btn btn-danger" onsubmit="saveScrollPosition()">Удалить пост</button>
+                                    </div>
+                                </div>
+
+                                <div class="generate-buttons">
+                                    <div class="generate-group">
+                                        <textarea id="photo_description_{{ post.id }}" name="photo_description"
+                                            rows="8">{{ post.photo_description }}</textarea>
+                                        <button type="button" id="generateDescBtn_{{ post.id }}"
+                                            onclick="generateDescription('{{ file.id }}', '{{ post.id }}')" class="btn">
+                                            Сгенерировать<br>описание
+                                        </button>
+                                    </div>
+                                    <div class="generate-group">
+                                        <textarea id="post_content_{{ post.id }}" name="post_content"
+                                            rows="8">{{ post.post_content }}</textarea>
+                                        <button type="button" id="generatePostBtn_{{ post.id }}"
+                                            onclick="generatePostContent('{{ file.id }}', '{{ post.id }}')" class="btn">
+                                            Сгенерировать<br>содержание поста
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        {% endfor %}
+                        {% else %}
+                        <form method="POST" action="{{ url_for('post_routes.create_post') }}"
+                            onsubmit="saveScrollPosition()">
+                            <input type="hidden" name="file_id" value="{{ file.id }}">
+                            <p><button type="submit" class="btn">Создать пост</button></p>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <p>Фото еще не загружены.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </main>
+
+    <script src="{{ url_for('static', filename='scripts/control_posts.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            autosize(document.querySelectorAll('textarea'));
+            restoreScrollPosition();
+        });
+
+        function saveScrollPosition() {
+            localStorage.setItem('scrollPosition', window.scrollY);
+        }
+
+        function restoreScrollPosition() {
+            const scrollPosition = localStorage.getItem('scrollPosition');
+            if (scrollPosition) {
+                window.scrollTo(0, parseInt(scrollPosition, 10));
+                localStorage.removeItem('scrollPosition');
+            }
+        }
+    </script>
+
+    <style>
+        .filter-form {
+            margin: 20px 0;
+        }
+
+        .filter-sort {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .filter-group,
+        .sort-group,
+        .button-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0;
+            /* Remove any margin that might cause wrapping */
+        }
+
+        .filter-group select {
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            height: 32px;
+            /* Match the height of other elements */
+        }
+
+        .sort-group label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            margin: 0;
+            /* Remove any margin that might cause wrapping */
+            white-space: nowrap;
+            /* Prevent text wrapping */
+        }
+
+        .button-group {
+            margin-left: auto;
+            /* Push the button to the right */
+        }
+
+        .button-group .btn {
+            margin: 0;
+            height: 32px;
+            /* Match the height of other elements */
+            line-height: 32px;
+            padding: 0 15px;
+        }
+
+        .image-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 40vmin;
+            /* Match the image width */
+            margin-right: 20px;
+        }
+
+        .image-info {
+            text-align: left;
+            padding: 5px;
+        }
+
+        .image-info p {
+            margin: 5px 0;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .photo-item img {
+            max-width: 40vmin;
+            max-height: 40vmin;
+            height: auto;
+            width: auto;
+            object-fit: contain;
+            border-radius: 4px;
+            margin: 0;
+            /* Remove margin since container handles spacing */
+        }
+
+        .delete-image-form {
+            margin-top: 10px;
+            text-align: left;
+        }
+
+        .delete-image-form button {
+            width: auto;
+        }
+
+        .post-controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .post-info {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .post-info p {
+            margin: 0;
+        }
+
+        .post-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .post-actions select,
+        .post-actions input[type="datetime-local"] {
+            height: 32px;
+            padding: 0 10px;
+        }
+
+        .generate-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .generate-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .generate-group textarea {
+            width: 100%;
+            margin-bottom: 10px;
+            rows: 8;
+            /* Default to 8 rows */
+        }
+
+        .generate-group button {
+            width: 200px;
+            /* Fixed width for both buttons */
+            white-space: normal;
+            /* Allow text to wrap */
+            height: auto;
+            /* Allow height to adjust */
+            min-height: 50px;
+            /* Minimum height for two lines */
+            padding: 8px 15px;
+            line-height: 1.2;
+            /* Better line spacing for wrapped text */
+            text-align: center;
+        }
+
+        .post-form {
+            width: 100%;
+        }
+
+        .post-list {
+            width: 100%;
+        }
+
+        .post-item {
+            width: 100%;
+        }
+    </style>
+</body>
+
+</html>

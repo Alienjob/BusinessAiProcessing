@@ -1,0 +1,445 @@
+/* Reset some default browser styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f4f4;
+    color: #333;
+    line-height: 1.6;
+}
+
+/* Header and Navigation */
+header {
+    background-color: #4CAF50;
+    color: #fff;
+    padding: 10px 0;
+    margin-bottom: 20px;
+}
+
+header .container {
+    width: 90%;
+    margin: auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+header h1 {
+    font-size: 24px;
+}
+
+nav ul {
+    list-style: none;
+    display: flex;
+}
+
+nav ul li {
+    margin-left: 20px;
+}
+
+nav ul li a {
+    color: #fff;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+nav ul li a:hover {
+    text-decoration: underline;
+}
+
+/* Forms */
+form {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    margin: auto;
+}
+
+form p {
+    margin-bottom: 15px;
+}
+
+form label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+form input[type="text"],
+form input[type="password"],
+form input[type="number"],
+form textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+form input[type="text"]:focus,
+form input[type="password"]:focus,
+form input[type="number"]:focus,
+form textarea:focus {
+    border-color: #4CAF50;
+    outline: none;
+}
+
+form button,
+form input[type="submit"] {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+form button:hover,
+form input[type="submit"]:hover {
+    background-color: #45a049;
+}
+
+/* Buttons */
+button,
+input[type="button"] {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+button:hover,
+input[type="button"]:hover {
+    background-color: #45a049;
+}
+
+/* Sidebar */
+#mySidebar {
+    overflow-y: auto;
+    padding: 20px;
+    position: fixed;
+    top: 60px;
+    /* Adjusted to avoid overlapping with header */
+    right: 0;
+    width: 300px;
+    height: calc(100% - 60px);
+    background-color: #f9f9f9;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    font-family: Arial, sans-serif;
+    color: #333;
+}
+
+#mySidebar h1 {
+    font-size: 20px;
+    color: #4CAF50;
+    margin-bottom: 15px;
+}
+
+#mySidebar label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+#mySidebar input[type="text"],
+#mySidebar input[type="password"],
+#mySidebar input[type="number"],
+#mySidebar textarea {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+#mySidebar button {
+    width: 100%;
+    padding: 10px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-bottom: 15px;
+}
+
+#mySidebar button:hover {
+    background-color: #45a049;
+}
+
+#mySidebar #loginStatus,
+#mySidebar #pingStatus,
+#mySidebar #reviewResponsStatus,
+#mySidebar #pingId,
+#mySidebar #reviewResponsId,
+#mySidebar #reviewPreview {
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #f1f1f1;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+#mySidebar textarea[readonly] {
+    background-color: #e9e9e9;
+}
+
+/* Photo Grid */
+.photo-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin: 20px;
+    justify-content: center;
+}
+
+.photo-item {
+    border: 1px solid #ccc;
+    padding: 15px;
+    width: 250px;
+    text-align: center;
+    border-radius: 8px;
+    background-color: #fff;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.05);
+}
+
+.photo-item img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+/* Control Posts */
+.photo-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
+}
+
+.photo-item {
+    display: flex;
+    border: 1px solid #ccc;
+    padding: 15px;
+    width: 100%;
+    border-radius: 8px;
+    background-color: #fff;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.05);
+}
+
+.photo-item img {
+    max-width: 20vmin;
+    /* 20% of the viewport's minimum dimension */
+    max-height: 20vmin;
+    /* 20% of the viewport's minimum dimension */
+    height: auto;
+    width: auto;
+    margin-right: 20px;
+    /* Space between the image and the post info */
+    border-radius: 4px;
+}
+
+.post-list {
+    flex: 1;
+    /* Take up the remaining space */
+}
+
+.post-item {
+    border-top: 1px solid #ccc;
+    padding-top: 10px;
+    margin-top: 10px;
+}
+
+.post-item textarea {
+    resize: vertical;
+}
+
+/* Long Operations Table */
+table {
+    width: 90%;
+    margin: 20px auto;
+    border-collapse: collapse;
+    background-color: #fff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+table th,
+table td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+}
+
+table th {
+    background-color: #4CAF50;
+    color: white;
+}
+
+table tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+table tr:hover {
+    background-color: #ddd;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    header .container {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    nav ul {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    nav ul li {
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    #mySidebar {
+        position: relative;
+        width: 100%;
+        height: auto;
+        box-shadow: none;
+        margin-bottom: 20px;
+    }
+
+    .photo-item {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .photo-item img {
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+
+    table {
+        width: 100%;
+    }
+}
+
+.status {
+    padding: 5px 10px;
+    border-radius: 4px;
+    color: white;
+    font-weight: bold;
+}
+
+.status.done {
+    background-color: #28a745;
+}
+
+.status.processing {
+    background-color: #17a2b8;
+}
+
+.status.error {
+    background-color: #dc3545;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+table th,
+table td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+}
+
+table th {
+    background-color: #4CAF50;
+    color: white;
+}
+
+table tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+table tr:hover {
+    background-color: #ddd;
+}
+
+/* New styles for padding on the index page */
+.container {
+    padding: 20px;
+}
+
+/* Стили для ссылки логотипа */
+.logo-link {
+    color: #FFFFFF;
+    /* Белый цвет текста */
+    text-decoration: none;
+    /* Убирает подчеркивание */
+}
+
+.logo-link:visited {
+    color: #FFFFFF;
+    /* Белый цвет для посещенной ссылки */
+}
+
+.logo-link:hover {
+    color: #FFFFFF;
+    /* Белый цвет при наведении */
+}
+
+.logo-link:active {
+    color: #FFFFFF;
+    /* Белый цвет при активации */
+}
+
+/* Дополнительно, если заголовок перекрывает цвет ссылки */
+.logo-link h1 {
+    color: #FFFFFF;
+    /* Белый цвет текста заголовка */
+}
+
+/* Flash Messages */
+.flash-container {
+    position: fixed;
+    top: 60px;
+    /* Adjust based on header height */
+    width: 100%;
+    z-index: 1000;
+    text-align: center;
+}
+
+.flash {
+    display: inline-block;
+    background-color: #d4edda;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 4px;
+}
+
+.flash.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.flash.danger {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
