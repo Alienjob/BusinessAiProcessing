@@ -1,6 +1,5 @@
 # coding=utf-8
 
-import string
 import consul
 
 __consul = None
@@ -21,7 +20,7 @@ def __getConsulProvider():
 
 
 # Параметры подключения к базе данных
-def getDbUrl() -> string:
+def getDbUrl() -> str:
     global __db_url
     global __consul_available
     if __db_url is not None:
@@ -38,14 +37,14 @@ def getDbUrl() -> string:
         else:
             __db_url = dbURL
             return __db_url
-    except Exception:
+    except Exception as e:
         __db_url = dbURL
-        print(consulConnectionError)
+        print(consulConnectionError + f" {e}")
         __consul_available = False
         return __db_url
 
 
-def getDbSchema() -> string:
+def getDbSchema() -> str:
     global __db_schema
     global __consul_available
     if __db_schema != "":
@@ -54,22 +53,22 @@ def getDbSchema() -> string:
         if __consul_available:
             result = __getConsulProvider().kv.get('business_ai.dbSchema')[1]
             if result is None:
-                __getConsulProvider().kv.put('business_ai.dbSchema', "application")
-                __db_schema = "application"
+                __getConsulProvider().kv.put('business_ai.dbSchema', "business_ai")
+                __db_schema = "business_ai"
             else:
                 __db_schema = result['Value'].decode('UTF-8')
             return __db_schema
         else:
-            __db_schema = "application"
+            __db_schema = "business_ai"
             return __db_schema
-    except Exception:
-        print(consulConnectionError)
+    except Exception as e:
+        print(consulConnectionError + f" {e}")
         __consul_available = False
-        __db_schema = "application"
+        __db_schema = "business_ai"
         return __db_schema
 
 
-def getBusinessDbSchema() -> string:
+def getBusinessDbSchema() -> str:
     global __db_schema
     global __consul_available
     if __db_schema != "":
@@ -78,22 +77,22 @@ def getBusinessDbSchema() -> string:
         if __consul_available:
             result = __getConsulProvider().kv.get('business_ai.businessDbSchema')[1]
             if result is None:
-                __getConsulProvider().kv.put('business_ai.businessDbSchema', "business")
-                __db_schema = "business"
+                __getConsulProvider().kv.put('business_ai.businessDbSchema', "business_ai")
+                __db_schema = "business_ai"
             else:
                 __db_schema = result['Value'].decode('UTF-8')
             return __db_schema
         else:
-            __db_schema = "business"
+            __db_schema = "business_ai"
             return __db_schema
-    except Exception:
-        print(consulConnectionError)
+    except Exception as e:
+        print(consulConnectionError + f" {e}")
         __consul_available = False
-        __db_schema = "business"
+        __db_schema = "business_ai"
         return __db_schema
 
 
-def getApplicationName() -> string:
+def getApplicationName() -> str:
     global __application_name
     global __consul_available
     if __application_name != "":
@@ -110,9 +109,26 @@ def getApplicationName() -> string:
         else:
             __application_name = "business-ai"
             return __application_name
-    except Exception:
-        print(consulConnectionError)
-        __consul_available = False
+    except Exception as e:
+        print(consulConnectionError + f" {e}")
         __application_name = "business-ai"
+        __consul_available = False
         return __application_name
 
+def getPublicationsInterval() -> int:
+    global __consul_available
+    try:
+        if __consul_available:
+            result = __getConsulProvider().kv.get('business_ai.publicationsInterval')[1]
+            if result is None:
+                result = 345600000
+                __getConsulProvider().kv.put('business_ai.publicationsInterval', str(result))
+            else:
+                result = int(result['Value'].decode('UTF-8'))
+            return result
+        else:
+            return 345600000
+    except Exception as e:
+        print(consulConnectionError + f" {e}")
+        __consul_available = False
+        return 345600000

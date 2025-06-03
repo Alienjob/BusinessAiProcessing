@@ -1,8 +1,15 @@
 # Interface for LLM model requests.
+import enum
+
 class AiInterface:
     def request_rate(self, request: dict):
         pass
-    def response_to_request(self, request: str, prompt: str) -> str:
+    def response_to_request(self, orgName: str, request: str, prompt: str) -> str:
         pass
-    def generate_publication(self, imageUrl: str, description: str, prompt: str) -> str:
+    def generate_publication(self, imageUrl: str, orgName: str, assortment: str, description: str, prompt: str) -> str:
         pass
+
+@enum.unique
+class AiTarget(enum.Enum):
+    publication = 0
+    response = 1
