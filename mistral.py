@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import httpx
 import base64
 import requests
 from mistralai import Mistral
@@ -13,13 +14,17 @@ describe_image_token_limit = 5000
 class MistralAi(AiInterface):
 
     def __init__(self):
+        self.id = 'Mistral'
         self.api_key = API_KEY
+
+    def getId(self) -> str:
+        return self.id
 
     def request_rate(self, request: dict):
         pass
 
     def response_to_request(self, orgName: str, request: dict, prompt: str) -> str | None:
-        with Mistral(api_key=self.api_key) as mistral:
+        with Mistral(api_key=self.api_key, client=httpx.Client(verify=False)) as mistral:
             try:
                 res = mistral.chat.complete(
                     model="mistral-small-latest",
@@ -51,7 +56,7 @@ class MistralAi(AiInterface):
 
     def generate_publication(self, imageUrl: str, orgName: str, assortment: str,
                              description: str, prompt: str) -> str | None:
-        with Mistral(api_key=self.api_key) as mistral:
+        with Mistral(api_key=self.api_key, client=httpx.Client(verify=False)) as mistral:
             try:
                 response = requests.get(imageUrl, stream=True)
                 image_data = base64.b64encode(response.content).decode('utf-8')

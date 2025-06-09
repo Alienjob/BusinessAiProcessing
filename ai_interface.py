@@ -2,6 +2,8 @@
 import enum
 
 class AiInterface:
+    def getId(self) -> str:
+        pass
     def request_rate(self, request: dict):
         pass
     def response_to_request(self, orgName: str, request: str, prompt: str) -> str:

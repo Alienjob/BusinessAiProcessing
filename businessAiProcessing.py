@@ -140,6 +140,8 @@ def generatePublication(organization: str):
         imageName = getImageForPublication(assortment[0])
         publication = provider.generate_publication(imageUrl + imageName[0], organization,
                       assortment[1], assortment[2], getPromptForPublication(organization))
+        if publication is None:
+            return
         try:
             conn = ps.connect(utils.getDbUrl())
             with conn.cursor() as cursor:
@@ -179,12 +181,15 @@ def processClientRequests(organization: str):
     prompt = getPromptForReview(organization)
     for request in requests:
         answer = provider.response_to_request(organization, request[5], prompt)
+        if answer is None:
+            continue
         try:
             conn = ps.connect(utils.getDbUrl())
             with conn.cursor() as cursor:
-                cursor.execute("UPDATE " + utils.getDbSchema() + ".cust_requests SET fstate = 1, f.answer_text = '" +
-                               answer + "' WHERE r.created_at = '" + request[0] + "', organization_id = '" +
-                               request[1] + "', client = '" + request[2] + "'")
+                cursor.execute("UPDATE " + utils.getDbSchema() + ".cust_requests SET fstate = 1, answer_text = '" +
+                               answer + "', prompt_id = '" + getReviewPromptId(organization) + "', ai_provider = '" +
+                               provider.getId() + "' WHERE created_at = '" + str(request[0]) + "' AND organization_id = '" +
+                               request[1] + "' AND client = '" + request[2] + "'")
             conn.commit()
         except Exception as e:
             print(f": {e}")
