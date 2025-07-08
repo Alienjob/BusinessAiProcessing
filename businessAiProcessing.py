@@ -133,33 +133,32 @@ def getImageForPublication(assortment: uuid) -> str:
 
 def generatePublication(organization: str):
     print(f"Generate publication for {organization}")
-    if askDisposer(organization):
-        provider = getAiProvider(organization, AiTarget.publication)
-        assortment = getAssortmentForPublication(organization)
-        imageUrl = getUrlForImages() + assortment[0] + "/"
-        imageName = getImageForPublication(assortment[0])
-        publication = provider.generate_publication(imageUrl + imageName[0], organization,
-                      assortment[1], assortment[2], getPromptForPublication(organization))
-        if publication is None:
-            return
-        try:
-            conn = ps.connect(utils.getDbUrl())
-            with conn.cursor() as cursor:
-                cursor.execute("SELECT id FROM " + utils.getDbSchema() +
-                               ".organization WHERE strictname = '" + organization + "'")
-                orgId = cursor.fetchone()
-                timeCreated = str(datetime.datetime.now())
-                cursor.execute("INSERT INTO " + utils.getDbSchema() + ".publications(created_at, organization_id, "
-                               "assortment_id, prompt_id, fcontent, fstate) VALUES('" + timeCreated +
-                                "', '" + orgId[0] + "', '" + assortment[0] + "', '" +
-                                getPublicationsPromptId(organization) + "', '" +
-                                publication + "', 0)")
-                cursor.execute("INSERT INTO " + utils.getDbSchema() + ".publication_images(publications_created_at,"
-                               "publications_organization_id, images) VALUES('" + timeCreated + "', '" + orgId[0] +
-                               "', '" + imageName[0] + "')")
-                conn.commit()
-        except Exception as e:
-            print(f": {e}")
+    provider = getAiProvider(organization, AiTarget.publication)
+    assortment = getAssortmentForPublication(organization)
+    imageUrl = getUrlForImages() + assortment[0] + "/"
+    imageName = getImageForPublication(assortment[0])
+    publication = provider.generate_publication(imageUrl + imageName[0], organization,
+                  assortment[1], assortment[2], getPromptForPublication(organization))
+    if publication is None:
+        return
+    try:
+        conn = ps.connect(utils.getDbUrl())
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT id FROM " + utils.getDbSchema() +
+                           ".organization WHERE strictname = '" + organization + "'")
+            orgId = cursor.fetchone()
+            timeCreated = str(datetime.datetime.now())
+            cursor.execute("INSERT INTO " + utils.getDbSchema() + ".publications(created_at, organization_id, "
+                           "assortment_id, prompt_id, fcontent, fstate) VALUES('" + timeCreated +
+                           "', '" + orgId[0] + "', '" + assortment[0] + "', '" +
+                           getPublicationsPromptId(organization) + "', '" +
+                           publication + "', 0)")
+            cursor.execute("INSERT INTO " + utils.getDbSchema() + ".publication_images(publications_created_at,"
+                           "publications_organization_id, images) VALUES('" + timeCreated + "', '" + orgId[0] +
+                           "', '" + imageName[0] + "')")
+            conn.commit()
+    except Exception as e:
+        print(f": {e}")
 
 def selectNewRequests(organization: str):
     try:
@@ -204,7 +203,8 @@ def businessAiProcessing():
                            "' AND status = " + str(__active_community_status))
             for community in cursor.fetchall():
                 processClientRequests(community[0])
-                generatePublication(community[0])
+                if askDisposer(community[0]):
+                    generatePublication(community[0])
     except Exception as e:
         print(f"{e}")
 
