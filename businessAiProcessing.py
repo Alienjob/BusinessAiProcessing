@@ -21,10 +21,10 @@ def getUrlForImages() -> str:
         return str(__images_url)
     consul = utils.__getConsulProvider()
     if consul is None:
-        return "https://business-ai/hooded/assortment/images/"
+        return "http://business-ai:8080/hooded/assortment/images/"
     result = utils.__getConsulProvider().kv.get('business_ai.imagesUrl')[1]
     if result is None:
-        result = "https://business-ai/hooded/assortment/images/"
+        result = "http://business-ai:8080/hooded/assortment/images/"
         utils.__getConsulProvider().kv.put('business_ai.imagesUrl', result)
     else:
         result = result['Value'].decode('UTF-8')
