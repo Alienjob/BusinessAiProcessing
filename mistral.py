@@ -23,7 +23,7 @@ class MistralAi(AiInterface):
     def request_rate(self, request: dict):
         pass
 
-    def response_to_request(self, orgName: str, request: dict, prompt: str) -> str | None:
+    def response_to_request(self, orgName: str, request: dict, prompt: str, argument: str) -> str | None:
         with Mistral(api_key=self.api_key, client=httpx.Client(verify=False)) as mistral:
             try:
                 res = mistral.chat.complete(
@@ -31,6 +31,10 @@ class MistralAi(AiInterface):
                     messages=[
                         {
                             "content": prompt,
+                            "role": "system",
+                        },
+                        {
+                            "content": argument,
                             "role": "system",
                         },
                         {
@@ -55,7 +59,7 @@ class MistralAi(AiInterface):
                 return None
 
     def generate_publication(self, imageUrl: str, orgName: str, assortment: str,
-                             description: str, prompt: str) -> str | None:
+                             description: str, prompt: str, argument: str) -> str | None:
         with Mistral(api_key=self.api_key, client=httpx.Client(verify=False)) as mistral:
             try:
                 response = requests.get(imageUrl, stream=True)
@@ -66,6 +70,10 @@ class MistralAi(AiInterface):
                         {
                             "role": "system",
                             "content": prompt
+                        },
+                        {
+                            "content": argument,
+                            "role": "system",
                         },
                         {
                             "role": "system",
