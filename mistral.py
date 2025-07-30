@@ -9,7 +9,7 @@ from ai_interface import AiInterface
 API_KEY = 'zJUwEYPKJwuQlGYzoJs7tXlfXAbJOX9R'
 
 answer_review_token_limit = 300
-describe_image_token_limit = 5000
+describe_image_token_limit = 1000
 
 class MistralAi(AiInterface):
 
