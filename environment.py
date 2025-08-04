@@ -49,8 +49,8 @@ class Environment:
     def __getConfigFileName(self):
         fileName = self.name
         if len(self.profile) > 0:
-            fileName = fileName + '.' + self.profile
-        return fileName + ".yaml"
+            fileName = fileName + self.profile
+        return fileName.replace(',', '_') + ".yaml"
 
     def __getValues(self):
         if self.values is None:
@@ -69,16 +69,17 @@ class Environment:
 
     def get(self, name: str, defaultValue = None):
         i = 1
-        path = name.split('.')
-        result = self.__getValues()[path[0]]
-        while i < len(path):
-            if result is None:
-                break
-            result = result[path[i]]
-            i = i + 1
-        if result is None:
+        try:
+            path = name.split('.')
+            result = self.__getValues()[path[0]]
+            while i < len(path):
+                if result is None:
+                    return defaultValue
+                result = result[path[i]]
+                i = i + 1
+            return result
+        except KeyError:
             return defaultValue
-        return result
 
     def __saveValues(self):
         stringToSave = StringIO()

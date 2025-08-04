@@ -6,9 +6,11 @@ class AiInterface:
         pass
     def request_rate(self, request: dict):
         pass
-    def response_to_request(self, orgName: str, request: str, prompt: str, argument: str) -> str:
+    def response_to_request(self, orgName: str, request: str, prompt: str, argument: str, char_limit: int) -> str:
         pass
-    def generate_publication(self, imageUrl: str, orgName: str, assortment: str, description: str, prompt: str, argument: str) -> str:
+    def generate_publication(self, orgName: str, assortment: str, description: str, imageDescription: str, prompt: str, argument: str, char_limit: int) -> str:
+        pass
+    def describeImage(self, orgName: str, imageUrl: str, assortment: str, prompt: str, argument: str, token_limit: int) -> str:
         pass
 
 @enum.unique
