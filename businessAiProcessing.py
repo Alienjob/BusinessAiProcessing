@@ -4,12 +4,15 @@ from __future__ import annotations
 import uuid
 import random
 import datetime
+import schedule
 
 import psycopg2 as ps
 
 from mistral import MistralAi
 from environment import Environment
 from ai_interface import AiInterface
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from urllib.parse import urlparse
 
 dbConnectionString = None
 __active_community_status = 4
@@ -238,4 +241,33 @@ def businessAiProcessing():
     except Exception as e:
         print(f"{e}")
 
-businessAiProcessing()
+schedule.every(env.get("business-ai.processing-time", 5)).minutes.do(businessAiProcessing())
+
+class ProcessingAgent(BaseHTTPRequestHandler):
+
+    def do_GET(self):
+        self._handle_request()
+
+    def do_POST(self):
+        self._handle_request()
+
+    def _handle_request(self):
+        url = urlparse(self.path)
+        if url.path is None:
+            return
+        if url.path.startswith("/"):
+            url = url.path[1:]
+        else:
+            url = url.path
+        params = url.split("/")
+        if params[0].lower() == "publication":
+            generatePublication(params[1])
+
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b'OK')
+
+if __name__ == '__main__':
+    server = HTTPServer(('0.0.0.0', 7777), ProcessingAgent)
+    print("AI service server listening on port 7777")
+    server.serve_forever()
