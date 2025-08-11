@@ -5,7 +5,6 @@ import uuid
 import random
 import datetime
 import schedule
-
 import psycopg2 as ps
 
 from mistral import MistralAi
@@ -241,7 +240,7 @@ def businessAiProcessing():
     except Exception as e:
         print(f"{e}")
 
-schedule.every(env.get("business-ai.processing-time", 5)).minutes.do(businessAiProcessing())
+schedule.every(env.get("business-ai.processing-time", 5)).minutes.do(businessAiProcessing)
 
 class ProcessingAgent(BaseHTTPRequestHandler):
 
@@ -267,7 +266,6 @@ class ProcessingAgent(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b'OK')
 
-if __name__ == '__main__':
-    server = HTTPServer(('0.0.0.0', 7777), ProcessingAgent)
-    print("AI service server listening on port 7777")
-    server.serve_forever()
+server = HTTPServer(('0.0.0.0', 7777), ProcessingAgent)
+print("AI service server listening on port 7777")
+server.serve_forever()
