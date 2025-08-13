@@ -12,6 +12,7 @@ from environment import Environment
 from ai_interface import AiInterface
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse
+from urllib.parse import unquote
 
 dbConnectionString = None
 __active_community_status = 4
@@ -86,7 +87,9 @@ def getAssortmentForPublication(organization: str):
                        ".organization o ON a.manufacturer = o.id WHERE o.strictname = '" + organization + "'")
         for row in cursor.fetchall():
             assortments.append(row)
-        return assortments[random.randint(0, len(assortments) - 1)]
+        if len(assortments) > 0:
+            return assortments[random.randint(0, len(assortments) - 1)]
+        return None
 
 def getImageForPublication(assortment: uuid) -> str | None:
     conn = ps.connect(getConnectionString())
@@ -113,7 +116,11 @@ def getImageDescription(assortment: uuid, imageName: str) -> str | None:
 
 def generatePublication(organization: str):
     assortment = getAssortmentForPublication(organization)
+    if assortment is None:
+        return
     imageName = getImageForPublication(assortment[0])
+    if imageName is None:
+        return
     imageDescription = getImageDescription(assortment[0], imageName)
     char_limit = env.get("python.max_chars_for_publication", 2500)
     (promptId, prompt, argument, providerType) = getPrompt(organization, 1)
@@ -259,8 +266,8 @@ class ProcessingAgent(BaseHTTPRequestHandler):
         else:
             url = url.path
         params = url.split("/")
-        if params[0].lower() == "publication":
-            generatePublication(params[1])
+        if params[0].lower() == "publication" and params[1] is not None:
+            generatePublication(unquote(params[1]))
 
         self.send_response(200)
         self.end_headers()
