@@ -4,7 +4,7 @@ import enum
 class AiInterface:
     def getId(self) -> str:
         pass
-    def request_rate(self, request: dict):
+    def request_rate(self, request: str, prompt: str, argument: str) -> float:
         pass
     def response_to_request(self, orgName: str, request: str, prompt: str, argument: str, char_limit: int) -> str:
         pass

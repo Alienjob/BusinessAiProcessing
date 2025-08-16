@@ -17,8 +17,8 @@ class MistralAi(AiInterface):
     def getId(self) -> str:
         return self.id
 
-    def request_rate(self, request: dict):
-        pass
+    def request_rate(self, request: str, prompt: str, argument: str) -> float:
+        return -1
 
     def describeImage(self, orgName: str, imageUrl: str, assortment: str,
                       prompt: str, argument: str, token_limit: int) -> str | None:
