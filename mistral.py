@@ -1,27 +1,30 @@
 from __future__ import annotations
 
-import httpx
 import base64
+
+import httpx
 import requests
 from mistralai import Mistral
+
+import environment
 from ai_interface import AiInterface
 
-API_KEY = 'zJUwEYPKJwuQlGYzoJs7tXlfXAbJOX9R'
 
 class MistralAi(AiInterface):
 
     def __init__(self):
         self.id = 'Mistral'
-        self.api_key = API_KEY
+        env = environment.Environment('business-ai-service')
+        self.api_key = env.get('python.mistral-key')
 
     def getId(self) -> str:
         return self.id
 
-    def request_rate(self, request: dict):
-        pass
+    def request_rate(self, request: str, prompt: str) -> float:
+        return -1
 
     def describeImage(self, orgName: str, imageUrl: str, assortment: str,
-                      prompt: str, argument: str, token_limit: int) -> str | None:
+                      prompt: str, token_limit: int) -> str | None:
         with Mistral(api_key=self.api_key, client=httpx.Client(verify=False)) as mistral:
             try:
                 response = requests.get(imageUrl, stream=True)
@@ -32,10 +35,6 @@ class MistralAi(AiInterface):
                         {
                             "role": "system",
                             "content": prompt
-                        },
-                        {
-                            "content": argument,
-                            "role": "system",
                         },
                         {
                             "role": "system",
@@ -60,7 +59,7 @@ class MistralAi(AiInterface):
                 print(f"Error occurred while communicating with Mistral API: {e}")
                 return None
 
-    def response_to_request(self, orgName: str, request: dict, prompt: str, argument: str, char_limit: int) -> str | None:
+    def response_to_request(self, orgName: str, request: dict, prompt: str, char_limit: int) -> str | None:
         with Mistral(api_key=self.api_key, client=httpx.Client(verify=False)) as mistral:
             try:
                 res = mistral.chat.complete(
@@ -68,10 +67,6 @@ class MistralAi(AiInterface):
                     messages=[
                         {
                             "content": prompt,
-                            "role": "system",
-                        },
-                        {
-                            "content": argument,
                             "role": "system",
                         },
                         {
@@ -98,18 +93,14 @@ class MistralAi(AiInterface):
                 print(f"Error occurred while communicating with Mistral API: {e}")
                 return None
 
-    def generate_publication(self, orgName: str, assortment: str, description: str, imageDescription: str,
-                             prompt: str, argument: str, char_limit: int) -> str | None:
+    def generate_publication(self, orgName: str, assortment: str, description: str,
+                             imageDescription: str, prompt: str, char_limit: int) -> str | None:
         with Mistral(api_key=self.api_key, client=httpx.Client(verify=False)) as mistral:
             try:
                 operatedMessages = [
                     {
                         "role": "system",
                         "content": prompt
-                    },
-                    {
-                        "role": "system",
-                        "content": argument
                     },
                     {
                         "role": "system",
