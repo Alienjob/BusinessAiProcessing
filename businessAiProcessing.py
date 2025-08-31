@@ -1,18 +1,19 @@
 # coding=utf-8
 from __future__ import annotations
 
-import uuid
-import random
 import datetime
-import schedule
-import psycopg2 as ps
-
-from mistral import MistralAi
-from environment import Environment
-from ai_interface import AiInterface
+import random
+import uuid
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlparse
 from urllib.parse import unquote
+from urllib.parse import urlparse
+
+import psycopg2 as ps
+import schedule
+
+from ai_interface import AiInterface
+from environment import Environment
+from mistral import MistralAi
 
 dbConnectionString = None
 __active_community_status = 4
@@ -40,12 +41,12 @@ def getConnectionString() -> str:
                                      "postgresql://postgres:38rWHn4e@srvpostgres:5432/postgres")
     return dbConnectionString
 
-def getPrompt(organization: str, promptType: int) -> (uuid, str, str, int):
+def getPrompt(organization: str, promptType: int) -> (uuid, str, int):
     try:
         conn = ps.connect(getConnectionString())
         dbSchema = env.get("python.businessAiSchema", "business_ai")
         with conn.cursor() as cursor:
-            cursor.execute("SELECT p.id, p.fcontent, ap.argument, p.ai_provider FROM " + dbSchema +
+            cursor.execute("SELECT p.id, p.fcontent, p.ai_provider FROM " + dbSchema +
                            ".ai_plans ap inner join " + dbSchema +
                            ".org_ai_plans op on ap.fname = op.plan_name inner join " + dbSchema +
                            ".organization o on op.org_id = o.id inner join " + dbSchema +
@@ -54,14 +55,14 @@ def getPrompt(organization: str, promptType: int) -> (uuid, str, str, int):
             result = cursor.fetchone()
             if result is None or result[0] is None:
                 if promptType == 0:
-                    return None, defaultImagePrompt, "", 0
+                    return None, defaultImagePrompt, 0
                 if promptType == 1:
-                    return None, defaultPublicationPrompt, "", 0
+                    return None, defaultPublicationPrompt, 0
                 if promptType == 2:
-                    return None, defaultReviewPrompt, "", 0
+                    return None, defaultReviewPrompt, 0
                 if promptType == 3:
-                    return None, defaultRatePrompt, "", 0
-                return None, "", "", 0
+                    return None, defaultRatePrompt, 0
+                return None, "", 0
             return result
     except Exception as e:
         print(dbConnectionError + f": {e}")
@@ -128,9 +129,9 @@ def generatePublication(organization: str):
         return
     imageDescription = getImageDescription(assortment[0], imageName)
     char_limit = env.get("python.max_chars_for_publication", 2500)
-    (promptId, prompt, argument, providerType) = getPrompt(organization, 1)
-    publication = getProvider(providerType).generate_publication(organization, assortment[1], assortment[2],
-                  imageDescription, prompt, argument, char_limit)
+    (promptId, prompt, providerType) = getPrompt(organization, 1)
+    publication = getProvider(providerType).generate_publication(organization, assortment[1],
+                  assortment[2], imageDescription, prompt, char_limit)
     if publication is None:
         return
     try:
@@ -176,11 +177,11 @@ def selectNewAssortments(organization: str):
 
 def processAssortmentImages(organization: str):
     max_tokens = env.get("python.max_tokens_for_describe_image", 500)
-    (promptId, prompt, argument, providerType) = getPrompt(organization, 0)
+    (promptId, prompt, providerType) = getPrompt(organization, 0)
     images = selectNewAssortments(organization)
     for image in images:
-        imageUrl = (env.get("imagesUrl", "/assortment/images/") + image[0] + "/" + image[1])
-        imageDescription = getProvider(providerType).describeImage(organization, imageUrl, image[2], prompt, argument, max_tokens)
+        imageUrl = (env.get("python.imagesUrl", "/assortment/images/") + image[0] + "/" + image[1])
+        imageDescription = getProvider(providerType).describeImage(organization, imageUrl, image[2], prompt, max_tokens)
         if imageDescription is None:
             continue
         try:
@@ -210,14 +211,14 @@ def selectNewRequests(organization: str):
 
 def processClientRequests(organization: str):
     char_limit = env.get("python.max_chars_for_review", 1000)
-    (promptId, prompt, argument, providerType) = getPrompt(organization, 2)
-    (checkPromptId, checkPrompt, checkArgument, checkProviderType) = getPrompt(organization, 3)
+    (promptId, prompt, providerType) = getPrompt(organization, 2)
+    (checkPromptId, checkPrompt, checkProviderType) = getPrompt(organization, 3)
     requests = selectNewRequests(organization)
     for request in requests:
-        answer = getProvider(providerType).response_to_request(organization, request[5], prompt, argument, char_limit)
+        answer = getProvider(providerType).response_to_request(organization, request[5], prompt, char_limit)
         if answer is None:
             continue
-        check = getProvider(checkProviderType).request_rate(request[5], checkPrompt, checkArgument)
+        check = getProvider(checkProviderType).request_rate(request[5], checkPrompt)
         try:
             conn = ps.connect(getConnectionString())
             dbSchema = env.get("python.businessAiSchema", "business_ai")
@@ -244,7 +245,7 @@ def businessAiProcessing():
         dbSchema = env.get("python.businessAiSchema", "business_ai")
         with conn.cursor() as cursor:
             cursor.execute("SELECT fname FROM " + dbSchema +
-                           ".community WHERE fapp = '" + env.get("application.name") +
+                           ".community WHERE fapp = '" + env.get("python.application.name") +
                            "' AND status = " + str(__active_community_status))
             for community in cursor.fetchall():
                 orgName = community[0]
@@ -255,7 +256,7 @@ def businessAiProcessing():
     except Exception as e:
         print(f"{e}")
 
-schedule.every(env.get("business-ai.processing-time", 5)).minutes.do(businessAiProcessing)
+schedule.every(env.get("python.processing-time", 5)).minutes.do(businessAiProcessing)
 
 class ProcessingAgent(BaseHTTPRequestHandler):
 
@@ -283,4 +284,7 @@ class ProcessingAgent(BaseHTTPRequestHandler):
 
 server = HTTPServer(('0.0.0.0', 7777), ProcessingAgent)
 print("AI service server listening on port 7777")
-server.serve_forever()
+server.timeout = 5
+while True:
+    server.handle_request()
+    schedule.run_pending()

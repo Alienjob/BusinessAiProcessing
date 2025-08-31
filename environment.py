@@ -1,8 +1,10 @@
 import os
-import yaml
+from io import StringIO
+
 import consul
 import requests
-from io import StringIO
+import yaml
+
 
 def getProfileSuffix(profile: str):
     if profile is None or len(profile) < 1 or profile.lower() == 'production':
@@ -35,8 +37,8 @@ class Environment:
             self.consul = consul.Consul(host=consulHost, port=consulPort, scheme='http')
         return self.consul
 
-    def __getProfileConsul(self):
-        consulPath = 'config/' + self.name + self.profile + "/data"
+    def __getProfileConsul(self, source):
+        consulPath = 'config/' + source + "/data"
         try:
             result = self.__getConsul().kv.get(consulPath)
             if result is None or result[1] is None:
@@ -46,25 +48,52 @@ class Environment:
             print("Consul connection error ")
             return None
 
-    def __getConfigFileName(self):
-        fileName = self.name
+    def __getConfigFileName(self, fileName):
         if len(self.profile) > 0:
             fileName = fileName + self.profile
         return fileName.replace(',', '_') + ".yaml"
 
+    def __mergeConsulValues(self, source):
+        try:
+            if self.values is None:
+                self.values = yaml.safe_load(source)
+            else:
+                values = yaml.safe_load(source)
+                for key, value in values.items():
+                    self.values[key] = value
+        except yaml.YAMLError as e:
+            print(f"Error parsing YAML file: {e}")
+
+    def __mergeFileValues(self, source):
+        try:
+            with open(source, 'r') as file:
+                if self.values is None:
+                    self.values = yaml.safe_load(file)
+                else:
+                    values = yaml.safe_load(file)
+                    for key, value in values.items():
+                        self.values[key] = value
+        except FileNotFoundError:
+            pass
+
+    def __process_config(self, name):
+        try:
+            consulConfig = self.__getProfileConsul(name)
+            if consulConfig is None:
+                self.__mergeFileValues(name + '.yaml')
+                if len(self.profile) > 0:
+                    self.__mergeFileValues(self.__getConfigFileName(name))
+            else:
+                self.__mergeConsulValues(consulConfig)
+                if len(self.profile) > 0:
+                    self.__mergeConsulValues(self.__getProfileConsul(name + self.profile))
+        except yaml.YAMLError as e:
+            print(f"Error parsing YAML file: {e}")
+
     def __getValues(self):
         if self.values is None:
-            try:
-                consulConfig = self.__getProfileConsul()
-                if consulConfig is None:
-                    with open(self.__getConfigFileName(), 'r') as file:
-                        self.values = yaml.safe_load(file)
-                else:
-                    self.values = yaml.safe_load(consulConfig)
-            except FileNotFoundError:
-                print(f"Error: Configuration file not found at {self.__getConfigFileName()}")
-            except yaml.YAMLError as e:
-                print(f"Error parsing YAML file: {e}")
+            self.__process_config('application')
+            self.__process_config(self.name)
         return self.values
 
     def get(self, name: str, defaultValue = None):
@@ -88,7 +117,7 @@ class Environment:
         try:
             self.__getConsul().kv.put(consulPath, stringToSave.getvalue())
         except requests.exceptions.ConnectionError:
-            with open(self.__getConfigFileName(), 'w') as file:
+            with open(self.__getConfigFileName(self.name), 'w') as file:
                 file.write(stringToSave.getvalue())
 
     def set(self, name: str, value):
