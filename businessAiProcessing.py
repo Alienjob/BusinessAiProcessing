@@ -3,13 +3,13 @@ from __future__ import annotations
 
 import datetime
 import random
-import uuid
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import unquote
 from urllib.parse import urlparse
 
 import psycopg2 as ps
 import schedule
+from pydantic.v1 import UUID4
 
 from ai_interface import AiInterface
 from environment import Environment
@@ -37,11 +37,10 @@ def getProviderName(providerType: int) -> str:
 def getConnectionString() -> str:
     global dbConnectionString
     if dbConnectionString is None:
-        dbConnectionString = env.get("python.datasource.url",
-                                     "postgresql://postgres:38rWHn4e@srvpostgres:5432/postgres")
+        dbConnectionString = env.get("python.datasource.url")
     return dbConnectionString
 
-def getPrompt(organization: str, promptType: int) -> (uuid, str, int):
+def getPrompt(organization: str, promptType: int) -> (UUID4, str, int):
     try:
         conn = ps.connect(getConnectionString())
         dbSchema = env.get("python.businessAiSchema", "business_ai")
@@ -84,6 +83,14 @@ def askDisposer(organization: str) -> bool:
         print(dbConnectionError + f": {e}")
         return False
 
+def getAssortmentById(assortmentId: str):
+    conn = ps.connect(getConnectionString())
+    dbSchema = env.get("python.businessAiSchema", "business_ai")
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT a.id, a.fname, a.description FROM " + dbSchema +
+                       ".assortment a WHERE a.id = '" + assortmentId + "'")
+        return cursor.fetchone()
+
 def getAssortmentForPublication(organization: str):
     conn = ps.connect(getConnectionString())
     dbSchema = env.get("python.businessAiSchema", "business_ai")
@@ -97,34 +104,39 @@ def getAssortmentForPublication(organization: str):
             return assortments[random.randint(0, len(assortments) - 1)]
         return None
 
-def getImageForPublication(assortment: uuid) -> str | None:
+def getImageForAssortment(assortment: UUID4) -> str | None:
     conn = ps.connect(getConnectionString())
     dbSchema = env.get("python.businessAiSchema", "business_ai")
     with conn.cursor() as cursor:
         images = []
         cursor.execute("SELECT images FROM " + dbSchema +
-                       ".ass_image WHERE assortment_id = '" + assortment + "'")
+                       ".ass_image WHERE assortment_id = '" + str(assortment) + "'")
         for row in cursor.fetchall():
             images.append(row[0])
         if len(images) > 0:
             return images[random.randint(0, len(images) - 1)]
         return None
 
-def getImageDescription(assortment: uuid, imageName: str) -> str | None:
+def getImageDescription(assortment: UUID4, imageName: str) -> str | None:
     if imageName is None:
         return None
     conn = ps.connect(getConnectionString())
     dbSchema = env.get("python.businessAiSchema", "business_ai")
     with conn.cursor() as cursor:
         cursor.execute("SELECT fcontent FROM " + dbSchema + ".image_description "
-                       "WHERE assortment_id = '" + assortment + "' AND image_name = '" + imageName + "'")
+                       "WHERE assortment_id = '" + str(assortment) + "' AND image_name = '" + imageName + "'")
         return cursor.fetchone()
 
-def generatePublication(organization: str):
-    assortment = getAssortmentForPublication(organization)
+def generatePublication(organization: str, assortmentId: str | None = None,
+                        imageName: str | None = None):
+    if assortmentId is None:
+        assortment = getAssortmentForPublication(organization)
+    else:
+        assortment = getAssortmentById(assortmentId)
     if assortment is None:
         return
-    imageName = getImageForPublication(assortment[0])
+    if imageName is None:
+        imageName = getImageForAssortment(assortment[0])
     if imageName is None:
         return
     imageDescription = getImageDescription(assortment[0], imageName)
@@ -275,9 +287,14 @@ class ProcessingAgent(BaseHTTPRequestHandler):
         else:
             url = url.path
         params = url.split("/")
-        if params[0].lower() == "publication" and params[1] is not None:
-            generatePublication(unquote(params[1]))
-
+        if params[0].lower() == "publication" and len(params) > 1:
+            if len(params) > 2:
+                if len(params) > 3:
+                    generatePublication(unquote(params[1]), params[2], params[3])
+                else:
+                    generatePublication(unquote(params[1]), params[2])
+            else:
+                generatePublication(unquote(params[1]))
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b'OK')

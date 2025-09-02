@@ -13,6 +13,15 @@ def getProfileSuffix(profile: str):
         return ',dev'
     return ',' + profile
 
+def deepMerge(dict1: dict, dict2: dict):
+    result = dict1.copy()
+    for key, value in dict2.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deepMerge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
 class Environment:
 
     def __init__(self, name: str):
@@ -58,9 +67,7 @@ class Environment:
             if self.values is None:
                 self.values = yaml.safe_load(source)
             else:
-                values = yaml.safe_load(source)
-                for key, value in values.items():
-                    self.values[key] = value
+                self.values = deepMerge(self.values, yaml.safe_load(source))
         except yaml.YAMLError as e:
             print(f"Error parsing YAML file: {e}")
 
@@ -124,12 +131,12 @@ class Environment:
         path = name.split('.')
         item = self.__getValues()
         if item is None:
-            item = dict()
+            item = {}
             self.values = item
         for i in range(len(path) - 1):
             element = item[path[i]]
             if element is None:
-                element = dict()
+                element = {}
                 item[path[i]] = element
             item = element
         item[path[len(path) - 1]] = value
