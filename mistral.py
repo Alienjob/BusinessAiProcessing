@@ -10,12 +10,36 @@ import environment
 from ai_interface import AiInterface
 
 
+CAPACITY_EXCEEDED_CODES = {"3505", "service_tier_capacity_exceeded"}
+
 class MistralAi(AiInterface):
 
     def __init__(self):
         self.id = 'Mistral'
         env = environment.Environment('business-ai-service')
         self.api_key = env.get('python.mistral-key')
+        # Predefined model tiers (high -> low), generic names only
+        self.text_tiers = [
+            "mistral-large-latest",
+            "mistral-medium-latest",
+            "mistral-small-latest",
+        ]
+        self.vision_tiers = [
+            "pixtral-large-latest",
+            "pixtral-medium-latest",
+            "pixtral-small-latest",
+        ]
+
+    # Helper to pick model by kind and tier offset (0=large, 1=medium, 2=small)
+    def _pick_model(self, kind: str, lower_tier: int) -> str:
+        tiers = self.text_tiers if kind == "text" else self.vision_tiers
+        index = max(0, min(lower_tier, 2))
+        return tiers[index]
+
+    def _is_capacity_exceeded(self, err: Exception) -> bool:
+        # Heuristic: look for 429 and code in message
+        msg = str(err)
+        return ("Status 429" in msg or "429" in msg) and any(code in msg for code in CAPACITY_EXCEEDED_CODES)
 
     def getId(self) -> str:
         return self.id
@@ -24,18 +48,16 @@ class MistralAi(AiInterface):
         return -1
 
     def describeImage(self, orgName: str, imageUrl: str, assortment: str,
-                      prompt: str, token_limit: int) -> str | None:
+                      prompt: str, token_limit: int, lower_tier: int = 0) -> str | None:
         with Mistral(api_key=self.api_key, client=httpx.Client(verify=False)) as mistral:
             try:
                 response = requests.get(imageUrl, stream=True)
                 image_data = base64.b64encode(response.content).decode('utf-8')
+                model_name = self._pick_model("vision", lower_tier)
                 res = mistral.chat.complete(
-                    model="pixtral-12b-2409",
+                    model=model_name,
                     messages=[
-                        {
-                            "role": "system",
-                            "content": prompt
-                        },
+                        {"role": "system", "content": prompt},
                         {
                             "role": "system",
                             "content": f"Необходимо учесть, что компания именуется как {orgName}, "
@@ -43,90 +65,81 @@ class MistralAi(AiInterface):
                                        f"называющегося {assortment}"
                         },
                         {
+                            "content": "Результирующее описание должно содержать не более " + str(token_limit) + " символов",
+                            "role": "system",
+                        },
+                        {
                             "content": [
-                                {"type": "image_url", "image_url": f"data:image/jpeg;base64,{image_data}" }
+                                {"type": "image_url", "image_url": f"data:image/jpeg;base64,{image_data}"}
                             ],
                             "role": "user"
                         }
                     ],
                     max_tokens=token_limit)
                 if res is not None and hasattr(res, 'choices') and len(res.choices) > 0:
-                    # Return the content of the first choice
                     return res.choices[0].message.content
                 else:
                     return None
             except Exception as e:
+                if self._is_capacity_exceeded(e) and lower_tier < 2:
+                    # Retry with a lower tier inside provider
+                    print(f"Retrying describeImage with lower tier: {lower_tier + 1}")
+                    return self.describeImage(orgName, imageUrl, assortment, prompt, token_limit, lower_tier + 1)
                 print(f"Error occurred while communicating with Mistral API: {e}")
                 return None
 
-    def response_to_request(self, orgName: str, request: dict, prompt: str, char_limit: int) -> str | None:
+    def response_to_request(self, orgName: str, request: dict, prompt: str, char_limit: int, lower_tier: int = 0) -> str | None:
         with Mistral(api_key=self.api_key, client=httpx.Client(verify=False)) as mistral:
             try:
+                model_name = self._pick_model("text", lower_tier)
                 res = mistral.chat.complete(
-                    model="mistral-small-latest",
+                    model=model_name,
                     messages=[
-                        {
-                            "content": prompt,
-                            "role": "system",
-                        },
-                        {
-                            "content": "Результирующее описание должно содержать не более " + str(char_limit) + " символов",
-                            "role": "system",
-                        },
-                        {
-                            "role": "system",
-                            "content": f"Необходимо учесть, что компания именуется как {orgName}"
-                        },
-                        {
-                            "content": f"Пользователь услуг направил в компанию запрос следующего содержания: {request}",
-                            "role": "user",
-                        }
+                        {"content": prompt, "role": "system"},
+                        {"content": "Результирующее описание должно содержать не более " + str(char_limit) + " символов", "role": "system"},
+                        {"role": "system", "content": f"Необходимо учесть, что компания именуется как {orgName}"},
+                        {"content": f"Пользователь услуг направил в компанию запрос следующего содержания: {request}", "role": "user"}
                     ])
-
-                # Check if the response contains valid data
                 if res is not None and hasattr(res, 'choices') and len(res.choices) > 0:
-                    # Return the content of the first choice
                     return res.choices[0].message.content
                 else:
                     return None
             except Exception as e:
+                if self._is_capacity_exceeded(e) and lower_tier < 2:
+                    print(f"Retrying response_to_request with lower tier: {lower_tier + 1}")
+                    return self.response_to_request(orgName, request, prompt, char_limit, lower_tier + 1)
                 print(f"Error occurred while communicating with Mistral API: {e}")
                 return None
 
     def generate_publication(self, orgName: str, assortment: str, description: str,
-                             imageDescription: str, prompt: str, char_limit: int) -> str | None:
+                             imageDescription: str, prompt: str, char_limit: int, lower_tier: int = 0) -> str | None:
         with Mistral(api_key=self.api_key, client=httpx.Client(verify=False)) as mistral:
             try:
                 operatedMessages = [
-                    {
-                        "role": "system",
-                        "content": prompt
-                    },
+                    {"role": "system", "content": prompt},
                     {
                         "role": "system",
                         "content": f"Необходимо учесть, что компания именуется как {orgName}, "
                                    f"а публикация формируется для продукта или услуги компании, "
                                    f"называющегося {assortment}"
                     },
-                    {
-                        "content": f"Результирующее описание должно содержать не более {char_limit} символов",
-                        "role": "system",
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Компания предоставила следующее описание для продукта или услуги: {description}"
-                    }
+                    {"content": f"Результирующее описание должно содержать не более {char_limit} символов", "role": "system"},
+                    {"role": "user", "content": f"Компания предоставила следующее описание для продукта или услуги: {description}"}
                 ]
                 if imageDescription is not None:
-                    operatedMessages.append({ "role": "user",
+                    operatedMessages.append({
+                        "role": "user",
                         "content": f"Публикация сопровождается изображением, описание которого сформулировано как {imageDescription}"
                     })
-                res = mistral.chat.complete(model = "mistral-small-latest", messages = operatedMessages)
+                model_name = self._pick_model("text", lower_tier)
+                res = mistral.chat.complete(model=model_name, messages=operatedMessages)
                 if res is not None and hasattr(res, 'choices') and len(res.choices) > 0:
-                    # Return the content of the first choice
                     return res.choices[0].message.content
                 else:
                     return None
             except Exception as e:
+                if self._is_capacity_exceeded(e) and lower_tier < 2:
+                    print(f"Retrying generate_publication with lower tier: {lower_tier + 1}")
+                    return self.generate_publication(orgName, assortment, description, imageDescription, prompt, char_limit, lower_tier + 1)
                 print(f"Error occurred while communicating with Mistral API: {e}")
                 return None
