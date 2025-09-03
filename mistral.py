@@ -43,6 +43,10 @@ class MistralAi(AiInterface):
                                        f"называющегося {assortment}"
                         },
                         {
+                            "content": "Результирующее описание должно содержать не более " + str(token_limit) + " символов",
+                            "role": "system",
+                        },
+                        {
                             "content": [
                                 {"type": "image_url", "image_url": f"data:image/jpeg;base64,{image_data}" }
                             ],
