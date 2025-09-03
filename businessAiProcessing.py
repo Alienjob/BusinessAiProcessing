@@ -137,9 +137,9 @@ def generatePublication(organization: str, assortmentId: str | None = None,
         return
     if imageName is None:
         imageName = getImageForAssortment(assortment[0])
-    if imageName is None:
-        return
-    imageDescription = getImageDescription(assortment[0], imageName)
+    imageDescription = None
+    if imageName is not None:
+        imageDescription = getImageDescription(assortment[0], imageName)
     char_limit = env.get("python.max_chars_for_publication", 2500)
     (promptId, prompt, providerType) = getPrompt(organization, 1)
     publication = getProvider(providerType).generate_publication(organization, assortment[1],
@@ -271,6 +271,13 @@ def businessAiProcessing():
 schedule.every(env.get("python.processing-time", 5)).minutes.do(businessAiProcessing)
 
 class ProcessingAgent(BaseHTTPRequestHandler):
+
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")  # Allow requests from any origin
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        self.end_headers()
 
     def do_GET(self):
         self._handle_request()
