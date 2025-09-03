@@ -4,8 +4,8 @@ from __future__ import annotations
 import datetime
 import random
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import unquote
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
+from debug_ui import handle_debug_get, handle_debug_post
 
 import psycopg2 as ps
 import schedule
@@ -171,6 +171,25 @@ def generatePublication(organization: str, assortmentId: str | None = None,
     except Exception as e:
         print(f": {e}")
 
+# --- Debug-only direct calls (no DB) ---
+def debug_generate_publication(orgName: str,
+                               assortmentName: str,
+                               description: str,
+                               imageDescription: str | None,
+                               prompt: str,
+                               char_limit: int,
+                               providerType: int = 0) -> str | None:
+    return getProvider(providerType).generate_publication(orgName, assortmentName, description,
+                                                          imageDescription, prompt, char_limit)
+
+def debug_describe_image(orgName: str,
+                         imageUrl: str,
+                         assortmentName: str,
+                         prompt: str,
+                         token_limit: int,
+                         providerType: int = 0) -> str | None:
+    return getProvider(providerType).describeImage(orgName, imageUrl, assortmentName, prompt, token_limit)
+
 def selectNewAssortments(organization: str):
     try:
         conn = ps.connect(getConnectionString())
@@ -273,14 +292,19 @@ schedule.every(env.get("python.processing-time", 5)).minutes.do(businessAiProces
 class ProcessingAgent(BaseHTTPRequestHandler):
 
     def do_GET(self):
-        self._handle_request()
-
-    def do_POST(self):
-        self._handle_request()
-
-    def _handle_request(self):
+        # Debug page
+        if self.path.startswith('/debug'):
+            handle_debug_get(self, defaultPublicationPrompt, defaultImagePrompt, env)
+            return
+        # Ignore well-known/devtools and favicon requests
+        if self.path.startswith('/.well-known') or self.path == '/favicon.ico':
+            self.send_response(204)
+            self.end_headers()
+            return
         url = urlparse(self.path)
         if url.path is None:
+            self.send_response(404)
+            self.end_headers()
             return
         if url.path.startswith("/"):
             url = url.path[1:]
@@ -298,9 +322,18 @@ class ProcessingAgent(BaseHTTPRequestHandler):
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b'OK')
+    
+    def do_POST(self):
+        if self.path.startswith('/debug'):
+            handle_debug_post(self, defaultPublicationPrompt, defaultImagePrompt, env,
+                              debug_generate_publication, debug_describe_image)
+            return
+        # Fallback
+        self.do_GET()
 
+# Single handler server
 server = HTTPServer(('0.0.0.0', 7777), ProcessingAgent)
-print("AI service server listening on port 7777")
+print("AI service server listening on port 0.0.0.0:7777")
 server.timeout = 5
 while True:
     server.handle_request()
