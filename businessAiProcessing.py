@@ -279,6 +279,7 @@ def processClientRequests(organization: str):
                                    "', satisfaction = " + str(check) + " WHERE created_at = '" + str(request[0]) +
                                    "' AND organization_id = '" + request[1] + "' AND client = '" + request[2] + "'")
             conn.commit()
+            print(f"Сформирован ответ а обращение для {organization}")
         except Exception as e:
             print(f": {e}")
 
