@@ -235,7 +235,7 @@ def processAssortmentImages(organization: str):
                                "image_name, fcontent) VALUES('" + image[0] + "', '" + promptId + "', '" + image[1] +
                                "', '" + imageDescription + "')")
             conn.commit()
-            print(f"Сформировано описание для {image[1]}")
+            print(f"Сформировано описание изображения {image[1]} для {organization}")
         except Exception as e:
             print(f": {e}")
 
