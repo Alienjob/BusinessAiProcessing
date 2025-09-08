@@ -5,13 +5,13 @@ import datetime
 import random
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import unquote, urlparse
-from debug_ui import handle_debug_get, handle_debug_post
 
 import psycopg2 as ps
 import schedule
 from pydantic.v1 import UUID4
 
 from ai_interface import AiInterface
+from debug_ui import handle_debug_get, handle_debug_post
 from environment import Environment
 from mistral import MistralAi
 
@@ -179,6 +179,7 @@ def generatePublication(organization: str, assortmentId: str | None = None,
                                "publications_organization_id, images) VALUES('" + timeCreated +
                                "', '" + orgId[0] + "', '" + imageName + "')")
             conn.commit()
+            print(f"Сформирована публикация для {organization}")
     except Exception as e:
         print(f": {e}")
 
@@ -234,6 +235,7 @@ def processAssortmentImages(organization: str):
                                "image_name, fcontent) VALUES('" + image[0] + "', '" + promptId + "', '" + image[1] +
                                "', '" + imageDescription + "')")
             conn.commit()
+            print(f"Сформировано описание для {image[1]}")
         except Exception as e:
             print(f": {e}")
 
