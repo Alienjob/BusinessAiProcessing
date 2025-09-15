@@ -45,10 +45,13 @@ class MistralAi(AiInterface):
         return self.id
 
     def request_rate(self, request: str, prompt: str) -> float:
+        print("provider Mistral endpoint request_rate called")
+        print("provider Mistral endpoint request_rate response success (returning -1)")
         return -1
 
     def describeImage(self, orgName: str, imageUrl: str, assortment: str,
-                      prompt: str, token_limit: int, lower_tier: int = 0) -> str | None:
+                      prompt: str, token_limit: int, lower_tier: int = 0, file_metadata: dict = None) -> tuple[str | None, dict | None]:
+        print(f"provider Mistral endpoint describeImage called (tier: {lower_tier})")
         with Mistral(api_key=self.api_key, client=httpx.Client(verify=False)) as mistral:
             try:
                 response = requests.get(imageUrl, stream=True)
@@ -77,18 +80,21 @@ class MistralAi(AiInterface):
                     ],
                     max_tokens=token_limit)
                 if res is not None and hasattr(res, 'choices') and len(res.choices) > 0:
-                    return res.choices[0].message.content
+                    print("provider Mistral endpoint describeImage response success")
+                    return res.choices[0].message.content, None  # Mistral doesn't return metadata
                 else:
-                    return None
+                    print("provider Mistral endpoint describeImage response failed (no choices)")
+                    return None, None
             except Exception as e:
                 if self._is_capacity_exceeded(e) and lower_tier < 2:
                     # Retry with a lower tier inside provider
                     print(f"Retrying describeImage with lower tier: {lower_tier + 1}")
-                    return self.describeImage(orgName, imageUrl, assortment, prompt, token_limit, lower_tier + 1)
-                print(f"Error occurred while communicating with Mistral API: {e}")
-                return None
+                    return self.describeImage(orgName, imageUrl, assortment, prompt, token_limit, lower_tier + 1, file_metadata)
+                print(f"provider Mistral endpoint describeImage response failed: {e}")
+                return None, None
 
     def response_to_request(self, orgName: str, request: dict, prompt: str, char_limit: int, lower_tier: int = 0) -> str | None:
+        print(f"provider Mistral endpoint response_to_request called (tier: {lower_tier})")
         with Mistral(api_key=self.api_key, client=httpx.Client(verify=False)) as mistral:
             try:
                 model_name = self._pick_model("text", lower_tier)
@@ -101,18 +107,21 @@ class MistralAi(AiInterface):
                         {"content": f"Пользователь услуг направил в компанию запрос следующего содержания: {request}", "role": "user"}
                     ])
                 if res is not None and hasattr(res, 'choices') and len(res.choices) > 0:
+                    print("provider Mistral endpoint response_to_request response success")
                     return res.choices[0].message.content
                 else:
+                    print("provider Mistral endpoint response_to_request response failed (no choices)")
                     return None
             except Exception as e:
                 if self._is_capacity_exceeded(e) and lower_tier < 2:
                     print(f"Retrying response_to_request with lower tier: {lower_tier + 1}")
                     return self.response_to_request(orgName, request, prompt, char_limit, lower_tier + 1)
-                print(f"Error occurred while communicating with Mistral API: {e}")
+                print(f"provider Mistral endpoint response_to_request response failed: {e}")
                 return None
 
     def generate_publication(self, orgName: str, assortment: str, description: str,
                              imageDescription: str, prompt: str, char_limit: int, lower_tier: int = 0) -> str | None:
+        print(f"provider Mistral endpoint generate_publication called (tier: {lower_tier})")
         with Mistral(api_key=self.api_key, client=httpx.Client(verify=False)) as mistral:
             try:
                 operatedMessages = [
@@ -134,12 +143,14 @@ class MistralAi(AiInterface):
                 model_name = self._pick_model("text", lower_tier)
                 res = mistral.chat.complete(model=model_name, messages=operatedMessages)
                 if res is not None and hasattr(res, 'choices') and len(res.choices) > 0:
+                    print("provider Mistral endpoint generate_publication response success")
                     return res.choices[0].message.content
                 else:
+                    print("provider Mistral endpoint generate_publication response failed (no choices)")
                     return None
             except Exception as e:
                 if self._is_capacity_exceeded(e) and lower_tier < 2:
                     print(f"Retrying generate_publication with lower tier: {lower_tier + 1}")
                     return self.generate_publication(orgName, assortment, description, imageDescription, prompt, char_limit, lower_tier + 1)
-                print(f"Error occurred while communicating with Mistral API: {e}")
+                print(f"provider Mistral endpoint generate_publication response failed: {e}")
                 return None

@@ -161,6 +161,19 @@ create table business_ai.image_description
     primary key (assortment_id, image_name)
 );
 
+create table business_ai.file_metadata
+(
+    file_url_hash   varchar(32)  not null,
+    metadata_key    varchar(64)  not null,
+    metadata_value  text         not null,
+    file_url        text         not null,
+    created_at      timestamp default current_timestamp,
+    updated_at      timestamp default current_timestamp,
+    primary key (file_url_hash, metadata_key)
+);
+
+create index idx_file_metadata_url_hash on business_ai.file_metadata(file_url_hash);
+
 create table business_ai.org_ai_plans
 (
     org_id    uuid         not null,

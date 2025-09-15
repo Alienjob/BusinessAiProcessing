@@ -16,6 +16,7 @@ def _render(self, defaultPublicationPrompt: str, defaultImagePrompt: str, env, v
         'img_prompt': defaultImagePrompt,
         'img_token_limit': str(env.get("python.max_tokens_for_describe_image", 500)),
         'imageUrl': DEFAULT_IMAGE_URL,
+        'provider_type': '0',  # Default to Mistral
     }
     defaults.update({k: v for k, v in values.items() if v is not None})
 
@@ -36,6 +37,7 @@ def _render(self, defaultPublicationPrompt: str, defaultImagePrompt: str, env, v
       <label>Название организации:<br><input type="text" name="orgName" value="{esc(defaults['orgName'])}" style="width:480px"/></label><br><br>
       <label>URL изображения:<br><input type="text" name="imageUrl" value="{esc(defaults['imageUrl'])}" style="width:640px"/></label><br><br>
       <label>Название ассортимента/услуги:<br><input type="text" name="assortmentName" value="{esc(defaults['assortmentName'])}" style="width:480px"/></label><br><br>
+      <label>AI Провайдер:<br><select name="provider_type"><option value="0" {'selected' if defaults['provider_type'] == '0' else ''}>Mistral (0)</option><option value="1" {'selected' if defaults['provider_type'] == '1' else ''}>GigaChat (1)</option></select></label><br><br>
       <label>Промпт:<br><textarea name="img_prompt" rows="6" style="width:800px">{esc(defaults['img_prompt'])}</textarea></label><br><br>
       <label>Лимит токенов:<br><input type="number" name="img_token_limit" value="{esc(defaults['img_token_limit'])}"/></label><br><br>
       <button type="submit">Сгенерировать описание</button>
@@ -51,6 +53,7 @@ def _render(self, defaultPublicationPrompt: str, defaultImagePrompt: str, env, v
       <label>Название ассортимента/услуги:<br><input type="text" name="assortmentName" value="{esc(defaults['assortmentName'])}" style="width:480px"/></label><br><br>
       <label>Описание ассортимента/услуги:<br><textarea name="description" rows="6" style="width:800px">{esc(defaults['description'])}</textarea></label><br><br>
       <label>Описание изображения (опционально):<br><textarea name="imageDescription" rows="4" style="width:800px">{esc(defaults['imageDescription'])}</textarea></label><br><br>
+      <label>AI Провайдер:<br><select name="provider_type"><option value="0" {'selected' if defaults['provider_type'] == '0' else ''}>Mistral (0)</option><option value="1" {'selected' if defaults['provider_type'] == '1' else ''}>GigaChat (1)</option></select></label><br><br>
       <label>Промпт:<br><textarea name="pub_prompt" rows="6" style="width:800px">{esc(defaults['pub_prompt'])}</textarea></label><br><br>
       <label>Лимит символов:<br><input type="number" name="pub_char_limit" value="{esc(defaults['pub_char_limit'])}"/></label><br><br>
       <button type="submit">Сгенерировать публикацию</button>
@@ -87,17 +90,19 @@ def handle_debug_post(self, defaultPublicationPrompt: str, defaultImagePrompt: s
         'img_prompt': (form.get('img_prompt') or [defaultImagePrompt])[0],
         'img_token_limit': (form.get('img_token_limit') or [str(env.get("python.max_tokens_for_describe_image", 500))])[0],
         'imageUrl': (form.get('imageUrl') or [''])[0],
+        'provider_type': (form.get('provider_type') or ['0'])[0],
     }
 
     outputs = {}
     try:
+        provider_type_int = int(values['provider_type'])
         if action == 'describe':
             res = describe_image_cb(values['orgName'], values['imageUrl'], values['assortmentName'],
-                                    values['img_prompt'], int(values['img_token_limit']))
+                                    values['img_prompt'], int(values['img_token_limit']), provider_type_int)
             outputs['describe_result'] = res or ''
         elif action == 'publication':
             res = gen_publication_cb(values['orgName'], values['assortmentName'], values['description'],
-                                     values['imageDescription'] or None, values['pub_prompt'], int(values['pub_char_limit']))
+                                     values['imageDescription'] or None, values['pub_prompt'], int(values['pub_char_limit']), provider_type_int)
             outputs['publication_result'] = res or ''
     except Exception as e:
         outputs['publication_result' if action == 'publication' else 'describe_result'] = f"Ошибка: {e}"

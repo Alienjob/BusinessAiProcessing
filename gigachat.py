@@ -4,9 +4,11 @@ import base64
 import uuid
 import time
 import re
+import hashlib
 
 import requests
 import urllib3
+import psycopg2 as ps
 
 import environment
 from ai_interface import AiInterface
@@ -25,16 +27,19 @@ class GigaChatAi(AiInterface):
         self.access_token = None
         self.token_expires_at = None
         
+        # Image cache: url_hash -> file_id
+        self._image_cache = {}
+        
         # Model tiers (high -> low performance)
         self.text_tiers = [
-            "GigaChat-Pro",
+            "GigaChat-2-Pro",
             "GigaChat",
             "GigaChat-Max"
         ]
         
         # Vision models for image description
         self.vision_tiers = [
-            "GigaChat-Pro",
+            "GigaChat-2-Pro",
             "GigaChat",
             "GigaChat-Max"
         ]
@@ -81,9 +86,66 @@ class GigaChatAi(AiInterface):
             print(f"GigaChat authentication failed: {e}")
             return False
 
+    def _get_cached_image_id(self, image_url: str) -> str | None:
+        """Get cached file ID for image URL"""
+        url_hash = hashlib.md5(image_url.encode()).hexdigest()
+        file_id = self._image_cache.get(url_hash)
+        if file_id:
+            print(f"Using cached image file ID: {file_id}")
+        return file_id
+    
+    def _cache_image_id(self, image_url: str, file_id: str):
+        """Cache file ID for image URL"""
+        url_hash = hashlib.md5(image_url.encode()).hexdigest()
+        self._image_cache[url_hash] = file_id
+        print(f"Cached image file ID: {file_id} for URL hash: {url_hash[:8]}...")
+
+    def _upload_image(self, image_data: bytes) -> str | None:
+        """Upload image to GigaChat file storage and return file ID"""
+        if not self._get_auth_token():
+            return None
+            
+        headers = {
+            "Authorization": f"Bearer {self.access_token}"
+            # Don't set Content-Type - let requests handle multipart/form-data
+        }
+        
+        files = {
+            "file": ("image.jpg", image_data, "image/jpeg")
+        }
+        
+        data = {
+            "purpose": "general"
+        }
+        
+        try:
+            response = requests.post(
+                f"{self.base_url}/files",
+                headers=headers,
+                files=files,
+                data=data,
+                verify=False
+            )
+            response.raise_for_status()
+            
+            result = response.json()
+            file_id = result.get("id")
+            print(f"NEW GIGACHAT FILE ID FOR TESTING: {file_id}")
+            print(f"Image uploaded successfully, file ID: {file_id}")
+            return file_id
+            
+        except Exception as e:
+            print(f"Image upload failed: {e}")
+            if hasattr(e, 'response') and e.response:
+                print(f"Response status: {e.response.status_code}")
+                print(f"Response body: {e.response.text}")
+            return None
     def _chat_completion(self, messages: list, model: str, max_tokens: int = None) -> str | None:
         """Generic chat completion method"""
+        print(f"provider GigaChat endpoint chat/completions called (model: {model})")
+        
         if not self._get_auth_token():
+            print("provider GigaChat endpoint chat/completions response failed (auth)")
             return None
             
         headers = {
@@ -111,17 +173,23 @@ class GigaChatAi(AiInterface):
             
             result = response.json()
             if "choices" in result and len(result["choices"]) > 0:
+                print("provider GigaChat endpoint chat/completions response success")
                 return result["choices"][0]["message"]["content"]
+            print("provider GigaChat endpoint chat/completions response failed (no choices)")
             return None
             
         except Exception as e:
-            print(f"GigaChat API error: {e}")
+            print(f"provider GigaChat endpoint chat/completions response failed: {e}")
+            if hasattr(e, 'response') and e.response:
+                print(f"Response body: {e.response.text}")
+            print(f"Request data: {data}")
             return None
 
     def getId(self) -> str:
         return self.id
 
     def request_rate(self, request: str, prompt: str) -> float:
+        print("provider GigaChat endpoint request_rate called")
         model = self._pick_model("text", 0)
         
         messages = [
@@ -141,13 +209,16 @@ class GigaChatAi(AiInterface):
                 match = re.search(r'\d+(?:\.\d+)?', result)
                 if match:
                     rating = float(match.group())
+                    print("provider GigaChat endpoint request_rate response success")
                     return max(1.0, min(10.0, rating))  # Clamp to valid range
             except:
                 pass
         
+        print("provider GigaChat endpoint request_rate response failed (using default)")
         return 5.0  # Default neutral rating
 
     def response_to_request(self, orgName: str, request: dict, prompt: str, char_limit: int, lower_tier: int = 0) -> str | None:
+        print(f"provider GigaChat endpoint response_to_request called (tier: {lower_tier})")
         model = self._pick_model("text", lower_tier)
         
         messages = [
@@ -172,24 +243,26 @@ class GigaChatAi(AiInterface):
             print(f"Retrying response_to_request with lower tier: {lower_tier + 1}")
             return self.response_to_request(orgName, request, prompt, char_limit, lower_tier + 1)
         
+        if result:
+            print("provider GigaChat endpoint response_to_request response success")
+        else:
+            print("provider GigaChat endpoint response_to_request response failed")
+        
         return result
 
     def generate_publication(self, orgName: str, assortment: str, description: str,
                            imageDescription: str, prompt: str, char_limit: int, lower_tier: int = 0) -> str | None:
+        print(f"provider GigaChat endpoint generate_publication called (tier: {lower_tier})")
         model = self._pick_model("text", lower_tier)
         
+        # Format the prompt template with actual values
+        formatted_prompt = prompt.format(orgName=orgName, assortment=assortment, char_limit=char_limit)
+        
+        # Consolidate system messages to avoid 422 errors
+        system_content = f"{formatted_prompt}\n\nНеобходимо учесть, что компания именуется как {orgName}, а публикация формируется для продукта или услуги компании, называющегося {assortment}.\n\nРезультирующее описание должно содержать не более {char_limit} символов."
+        
         messages = [
-            {"role": "system", "content": prompt},
-            {
-                "role": "system",
-                "content": f"Необходимо учесть, что компания именуется как {orgName}, "
-                          f"а публикация формируется для продукта или услуги компании, "
-                          f"называющегося {assortment}"
-            },
-            {
-                "role": "system",
-                "content": f"Результирующее описание должно содержать не более {char_limit} символов"
-            },
+            {"role": "system", "content": system_content},
             {
                 "role": "user",
                 "content": f"Компания предоставила следующее описание для продукта или услуги: {description}"
@@ -208,51 +281,84 @@ class GigaChatAi(AiInterface):
             print(f"Retrying generate_publication with lower tier: {lower_tier + 1}")
             return self.generate_publication(orgName, assortment, description, imageDescription, prompt, char_limit, lower_tier + 1)
         
+        if result:
+            print("provider GigaChat endpoint generate_publication response success")
+        else:
+            print("provider GigaChat endpoint generate_publication response failed")
+        
         return result
 
     def describeImage(self, orgName: str, imageUrl: str, assortment: str,
-                     prompt: str, token_limit: int, lower_tier: int = 0) -> str | None:
+                     prompt: str, token_limit: int, lower_tier: int = 0, file_metadata: dict = None) -> tuple[str | None, dict | None]:
+        print(f"provider GigaChat endpoint describeImage called (tier: {lower_tier})")
         model = self._pick_model("vision", lower_tier)
         
+        # Initialize metadata if not provided
+        if file_metadata is None:
+            file_metadata = {}
+        
         try:
-            # Download and encode image
-            response = requests.get(imageUrl, stream=True)
-            image_data = base64.b64encode(response.content).decode('utf-8')
+            # Check if we already have a GigaChat file ID
+            existing_file_id = file_metadata.get('gigachat_file_id')
             
+            if existing_file_id:
+                print(f"Using existing GigaChat file ID: {existing_file_id}")
+                file_id = existing_file_id
+            else:
+                # Download and upload image
+                print(f"Downloading image from: {imageUrl}")
+                response = requests.get(imageUrl, stream=True)
+                response.raise_for_status()
+                image_data = response.content
+                print(f"Downloaded {len(image_data)} bytes of image data")
+                
+                print("Uploading image to GigaChat...")
+                file_id = self._upload_image(image_data)
+                if not file_id:
+                    print("provider GigaChat endpoint describeImage response failed (upload failed)")
+                    return None, None
+                
+                print(f"NEW GIGACHAT FILE ID FOR TESTING: {file_id}")  # For hardcoding in tests
+                
+                # CRITICAL FIX: Update file_metadata immediately so retry attempts can reuse this file ID
+                file_metadata['gigachat_file_id'] = file_id
+            
+            # Create messages with attachment - simpler format
             messages = [
                 {"role": "system", "content": prompt},
                 {
-                    "role": "system",
-                    "content": f"Необходимо учесть, что компания именуется как {orgName}, "
-                              f"а описание изображения формируется для продукта или услуги компании, "
-                              f"называющегося {assortment}"
-                },
-                {
-                    "role": "system",
-                    "content": f"Результирующее описание должно содержать не более {token_limit} символов"
-                },
-                {
                     "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": f"data:image/jpeg;base64,{image_data}"
-                        }
-                    ]
+                    "content": f"Опишите изображение для компании {orgName}, продукт {assortment}. Максимум {token_limit} символов.",
+                    "attachments": [file_id]
                 }
             ]
             
-            result = self._chat_completion(messages, model, token_limit)
+            print(f"Sending chat completion with file attachment: {file_id}")
+            result = self._chat_completion(messages, model, token_limit * 2)
             
             if result is None and lower_tier < 2:
                 print(f"Retrying describeImage with lower tier: {lower_tier + 1}")
-                return self.describeImage(orgName, imageUrl, assortment, prompt, token_limit, lower_tier + 1)
+                # Pass updated file_metadata with the file ID to retry attempts
+                return self.describeImage(orgName, imageUrl, assortment, prompt, token_limit, lower_tier + 1, file_metadata)
             
-            return result
+            # Prepare metadata to return
+            metadata_to_return = None
+            if not existing_file_id and file_id:
+                # Return new file ID for caching
+                metadata_to_return = {"gigachat_file_id": file_id}
+            
+            if result:
+                print("provider GigaChat endpoint describeImage response success")
+            else:
+                print("provider GigaChat endpoint describeImage response failed")
+            
+            return result, metadata_to_return
             
         except Exception as e:
+            print(f"Error in describeImage: {e}")
             if lower_tier < 2:
                 print(f"Retrying describeImage with lower tier: {lower_tier + 1}")
-                return self.describeImage(orgName, imageUrl, assortment, prompt, token_limit, lower_tier + 1)
-            print(f"Error processing image for GigaChat: {e}")
-            return None
+                # Pass updated file_metadata with the file ID to retry attempts
+                return self.describeImage(orgName, imageUrl, assortment, prompt, token_limit, lower_tier + 1, file_metadata)
+            print(f"provider GigaChat endpoint describeImage response failed: {e}")
+            return None, None

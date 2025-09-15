@@ -50,6 +50,64 @@ def getProviderName(providerType: int) -> str:
         return "GigaChat"
     raise Exception("Неизвестный тип провайдера искусственного интеллекта")
 
+def get_file_url_hash(file_url: str) -> str:
+    """Generate MD5 hash for file URL"""
+    import hashlib
+    return hashlib.md5(file_url.encode()).hexdigest()
+
+def load_file_metadata(file_url: str) -> dict:
+    """Load all metadata for a file URL from database"""
+    try:
+        conn = ps.connect(getConnectionString())
+        dbSchema = env.get("python.businessAiSchema", "business_ai")
+        url_hash = get_file_url_hash(file_url)
+        
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT metadata_key, metadata_value FROM " + dbSchema + 
+                          ".file_metadata WHERE file_url_hash = %s", (url_hash,))
+            results = cursor.fetchall()
+            
+        metadata = {}
+        for key, value in results:
+            metadata[key] = value
+            
+        if metadata:
+            print(f"Loaded file metadata for URL hash {url_hash[:8]}...: {list(metadata.keys())}")
+        
+        return metadata
+    except Exception as e:
+        print(f"Error loading file metadata: {e}")
+        return {}
+
+def store_file_metadata(file_url: str, metadata: dict):
+    """Store metadata for a file URL in database"""
+    if not metadata:
+        return
+        
+    try:
+        conn = ps.connect(getConnectionString())
+        dbSchema = env.get("python.businessAiSchema", "business_ai")
+        url_hash = get_file_url_hash(file_url)
+        
+        with conn.cursor() as cursor:
+            for key, value in metadata.items():
+                # Use ON CONFLICT to update existing records
+                cursor.execute("""
+                    INSERT INTO """ + dbSchema + """.file_metadata 
+                    (file_url_hash, metadata_key, metadata_value, file_url, updated_at) 
+                    VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+                    ON CONFLICT (file_url_hash, metadata_key) 
+                    DO UPDATE SET 
+                        metadata_value = EXCLUDED.metadata_value,
+                        updated_at = CURRENT_TIMESTAMP
+                """, (url_hash, key, value, file_url))
+                
+        conn.commit()
+        print(f"Stored file metadata for URL hash {url_hash[:8]}...: {list(metadata.keys())}")
+        
+    except Exception as e:
+        print(f"Error storing file metadata: {e}")
+
 def getConnectionString() -> str:
     global dbConnectionString
     if dbConnectionString is None:
@@ -204,7 +262,17 @@ def debug_describe_image(orgName: str,
                          prompt: str,
                          token_limit: int,
                          providerType: int = 0) -> str | None:
-    return getProvider(providerType).describeImage(orgName, imageUrl, assortmentName, prompt, token_limit)
+    # Load existing metadata
+    file_metadata = load_file_metadata(imageUrl)
+    
+    # Call provider with metadata
+    result, new_metadata = getProvider(providerType).describeImage(orgName, imageUrl, assortmentName, prompt, token_limit, file_metadata=file_metadata)
+    
+    # Store any new metadata returned by provider
+    if new_metadata:
+        store_file_metadata(imageUrl, new_metadata)
+    
+    return result
 
 def selectNewAssortments(organization: str):
     try:
@@ -228,7 +296,17 @@ def processAssortmentImages(organization: str):
     images = selectNewAssortments(organization)
     for image in images:
         imageUrl = (env.get("python.imagesUrl", "/assortment/images/") + image[0] + "/" + image[1])
-        imageDescription = getProvider(providerType).describeImage(organization, imageUrl, image[2], prompt, max_tokens)
+        
+        # Load existing metadata
+        file_metadata = load_file_metadata(imageUrl)
+        
+        # Call provider with metadata
+        imageDescription, new_metadata = getProvider(providerType).describeImage(organization, imageUrl, image[2], prompt, max_tokens, file_metadata=file_metadata)
+        
+        # Store any new metadata returned by provider
+        if new_metadata:
+            store_file_metadata(imageUrl, new_metadata)
+        
         if imageDescription is None:
             continue
         try:
