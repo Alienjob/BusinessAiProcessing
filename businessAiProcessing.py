@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import datetime
 import random
+import signal
+import sys
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import unquote, urlparse
 from debug_ui import handle_debug_get, handle_debug_post
@@ -34,6 +36,12 @@ defaultPublicationPrompt = """
 1–2 уместных списков (при необходимости), но не перегружайте.
 Если есть ключевая цитрусовая нота (например, мандарин) — подчеркните её мягкость и эмоциональную роль, а не просто «свежесть». Ограничение: до {char_limit} символов. Обязательно упомяните {assortment} и {orgName} в тексте. Не используйте Markdown или HTML. Делайте структуру отступами и пустыми строками. КАПС применяйте только точечно для коротких заголовков/меток (1–3 слова), например: КОМПОЗИЦИЯ, КОМУ ПОДОЙДЁТ, ПОЧЕМУ {orgName}. Основной текст пишите в обычном регистре; не используйте капс в целых предложениях.
 """
+
+def signal_handler(sig, frame):
+    """Handle Ctrl+C gracefully"""
+    print("\n\nShutting down AI service server...")
+    print("Goodbye!")
+    sys.exit(0)
 
 def getProvider(providerType: int) -> AiInterface:
     if providerType == 0:
@@ -428,7 +436,16 @@ class ProcessingAgent(BaseHTTPRequestHandler):
 # Single handler server
 server = HTTPServer(('0.0.0.0', 7777), ProcessingAgent)
 print("AI service server listening on port 0.0.0.0:7777")
+print("Press Ctrl+C to stop the server")
+
+# Register signal handler for graceful shutdown
+signal.signal(signal.SIGINT, signal_handler)
+
 server.timeout = 5
-while True:
-    server.handle_request()
-    schedule.run_pending()
+try:
+    while True:
+        server.handle_request()
+        schedule.run_pending()
+except KeyboardInterrupt:
+    # This shouldn't be reached due to signal handler, but just in case
+    print("\n\nShutting down AI service server...")
