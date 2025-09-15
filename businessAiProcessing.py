@@ -38,11 +38,16 @@ defaultPublicationPrompt = """
 def getProvider(providerType: int) -> AiInterface:
     if providerType == 0:
         return MistralAi()
+    elif providerType == 1:
+        from gigachat import GigaChatAi
+        return GigaChatAi()
     raise Exception("Неизвестный тип провайдера искусственного интеллекта")
 
 def getProviderName(providerType: int) -> str:
     if providerType == 0:
         return "Mistral"
+    elif providerType == 1:
+        return "GigaChat"
     raise Exception("Неизвестный тип провайдера искусственного интеллекта")
 
 def getConnectionString() -> str:
@@ -76,7 +81,7 @@ def getPrompt(organization: str, promptType: int) -> (UUID4, str, int):
             return result
     except Exception as e:
         print(dbConnectionError + f": {e}")
-        return None, defaultPublicationPrompt, "", 0
+        return None, defaultPublicationPrompt, 0
 
 def askDisposer(organization: str) -> bool:
     try:
