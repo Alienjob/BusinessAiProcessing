@@ -115,7 +115,7 @@ def getAssortmentForPublication(organization: str):
             return assortments[random.randint(0, len(assortments) - 1)]
         return None
 
-def getImageForAssortment(assortment: UUID4) -> str | None:
+def getImageNameForAssortment(assortment: UUID4) -> str | None:
     conn = ps.connect(getConnectionString())
     dbSchema = env.get("python.businessAiSchema", "business_ai")
     with conn.cursor() as cursor:
@@ -147,7 +147,7 @@ def generatePublication(organization: str, assortmentId: str | None = None,
     if assortment is None:
         return
     if imageName is None:
-        imageName = getImageForAssortment(assortment[0])
+        imageName = getImageNameForAssortment(assortment[0])
     imageDescription = None
     if imageName is not None:
         imageDescription = getImageDescription(assortment[0], imageName)
@@ -223,7 +223,7 @@ def processAssortmentImages(organization: str):
     (promptId, prompt, providerType) = getPrompt(organization, 0)
     images = selectNewAssortments(organization)
     for image in images:
-        imageUrl = (env.get("python.imagesUrl", "/assortment/images/") + image[0] + "/" + image[1])
+        imageUrl = (env.get("python.imagesUrl", "http://business-ai/hooded/assortment/images/") + image[0] + "/" + image[1])
         imageDescription = getProvider(providerType).describeImage(organization, imageUrl, image[2], prompt, max_tokens)
         if imageDescription is None:
             continue
@@ -231,9 +231,14 @@ def processAssortmentImages(organization: str):
             conn = ps.connect(getConnectionString())
             dbSchema = env.get("python.businessAiSchema", "business_ai")
             with conn.cursor() as cursor:
-                cursor.execute("INSERT INTO " + dbSchema + ".image_description(assortment_id, prompt_id, "
-                               "image_name, fcontent) VALUES('" + image[0] + "', '" + promptId + "', '" + image[1] +
-                               "', '" + imageDescription + "')")
+                if promptId is None:
+                    cursor.execute("INSERT INTO " + dbSchema + ".image_description(assortment_id, "
+                                   "image_name, fcontent) VALUES('" + image[0] + "', '" + image[1] +
+                                   "', '" + imageDescription + "')")
+                else:
+                    cursor.execute("INSERT INTO " + dbSchema + ".image_description(assortment_id, prompt_id, "
+                                   "image_name, fcontent) VALUES('" + image[0] + "', '" + promptId + "', '" + image[1] +
+                                   "', '" + imageDescription + "')")
             conn.commit()
             print(f"Сформировано описание изображения {image[1]} для {organization}")
         except Exception as e:
