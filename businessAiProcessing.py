@@ -340,9 +340,9 @@ class ProcessingAgent(BaseHTTPRequestHandler):
         if params[0].lower() == "publication" and len(params) > 1:
             if len(params) > 2:
                 if len(params) > 3:
-                    generatePublication(unquote(params[1]), params[2], params[3])
+                    generatePublication(unquote(params[1]), unquote(params[2]), unquote(params[3]))
                 else:
-                    generatePublication(unquote(params[1]), params[2])
+                    generatePublication(unquote(params[1]), unquote(params[2]))
             else:
                 generatePublication(unquote(params[1]))
         self.send_response(200)
