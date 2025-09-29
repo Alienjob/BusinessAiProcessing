@@ -69,19 +69,19 @@ def load_file_metadata(file_url: str) -> dict:
         conn = ps.connect(getConnectionString())
         dbSchema = env.get("python.businessAiSchema", "business_ai")
         url_hash = get_file_url_hash(file_url)
-        
+
         with conn.cursor() as cursor:
-            cursor.execute("SELECT metadata_key, metadata_value FROM " + dbSchema + 
+            cursor.execute("SELECT metadata_key, metadata_value FROM " + dbSchema +
                           ".file_metadata WHERE file_url_hash = %s", (url_hash,))
             results = cursor.fetchall()
-            
+
         metadata = {}
         for key, value in results:
             metadata[key] = value
-            
+
         if metadata:
             print(f"Loaded file metadata for URL hash {url_hash[:8]}...: {list(metadata.keys())}")
-        
+
         return metadata
     except Exception as e:
         print(f"Error loading file metadata: {e}")
@@ -91,12 +91,12 @@ def store_file_metadata(file_url: str, metadata: dict):
     """Store metadata for a file URL in database"""
     if not metadata:
         return
-        
+
     try:
         conn = ps.connect(getConnectionString())
         dbSchema = env.get("python.businessAiSchema", "business_ai")
         url_hash = get_file_url_hash(file_url)
-        
+
         with conn.cursor() as cursor:
             for key, value in metadata.items():
                 # Use ON CONFLICT to update existing records
@@ -109,10 +109,10 @@ def store_file_metadata(file_url: str, metadata: dict):
                         metadata_value = EXCLUDED.metadata_value,
                         updated_at = CURRENT_TIMESTAMP
                 """, (url_hash, key, value, file_url))
-                
+
         conn.commit()
         print(f"Stored file metadata for URL hash {url_hash[:8]}...: {list(metadata.keys())}")
-        
+
     except Exception as e:
         print(f"Error storing file metadata: {e}")
 
@@ -186,7 +186,7 @@ def getAssortmentForPublication(organization: str):
             return assortments[random.randint(0, len(assortments) - 1)]
         return None
 
-def getImageForAssortment(assortment: UUID4) -> str | None:
+def getImageNameForAssortment(assortment: UUID4) -> str | None:
     conn = ps.connect(getConnectionString())
     dbSchema = env.get("python.businessAiSchema", "business_ai")
     with conn.cursor() as cursor:
@@ -218,10 +218,10 @@ def generatePublication(organization: str, assortmentId: str | None = None,
     if assortment is None:
         return
     if imageName is None:
-        imageName = getImageForAssortment(assortment[0])
-    if imageName is None:
-        return
-    imageDescription = getImageDescription(assortment[0], imageName)
+        imageName = getImageNameForAssortment(assortment[0])
+    imageDescription = None
+    if imageName is not None:
+        imageDescription = getImageDescription(assortment[0], imageName)
     char_limit = env.get("python.max_chars_for_publication", 2500)
     (promptId, prompt, providerType) = getPrompt(organization, 1)
     publication = getProvider(providerType).generate_publication(organization, assortment[1],
@@ -250,6 +250,7 @@ def generatePublication(organization: str, assortmentId: str | None = None,
                                "publications_organization_id, images) VALUES('" + timeCreated +
                                "', '" + orgId[0] + "', '" + imageName + "')")
             conn.commit()
+            print(f"Сформирована публикация для {organization}")
     except Exception as e:
         print(f": {e}")
 
@@ -272,14 +273,14 @@ def debug_describe_image(orgName: str,
                          providerType: int = 0) -> str | None:
     # Load existing metadata
     file_metadata = load_file_metadata(imageUrl)
-    
+
     # Call provider with metadata
     result, new_metadata = getProvider(providerType).describeImage(orgName, imageUrl, assortmentName, prompt, token_limit, file_metadata=file_metadata)
-    
+
     # Store any new metadata returned by provider
     if new_metadata:
         store_file_metadata(imageUrl, new_metadata)
-    
+
     return result
 
 def selectNewAssortments(organization: str):
@@ -304,27 +305,35 @@ def processAssortmentImages(organization: str):
     images = selectNewAssortments(organization)
     for image in images:
         imageUrl = (env.get("python.imagesUrl", "/assortment/images/") + image[0] + "/" + image[1])
-        
+
         # Load existing metadata
         file_metadata = load_file_metadata(imageUrl)
-        
+
         # Call provider with metadata
         imageDescription, new_metadata = getProvider(providerType).describeImage(organization, imageUrl, image[2], prompt, max_tokens, file_metadata=file_metadata)
-        
+
         # Store any new metadata returned by provider
         if new_metadata:
             store_file_metadata(imageUrl, new_metadata)
-        
+
+        imageUrl = (env.get("python.imagesUrl", "http://business-ai/hooded/assortment/images/") + image[0] + "/" + image[1])
+        imageDescription = getProvider(providerType).describeImage(organization, imageUrl, image[2], prompt, max_tokens)
         if imageDescription is None:
             continue
         try:
             conn = ps.connect(getConnectionString())
             dbSchema = env.get("python.businessAiSchema", "business_ai")
             with conn.cursor() as cursor:
-                cursor.execute("INSERT INTO " + dbSchema + ".image_description(assortment_id, prompt_id, "
-                               "image_name, fcontent) VALUES('" + image[0] + "', '" + promptId + "', '" + image[1] +
-                               "', '" + imageDescription + "')")
+                if promptId is None:
+                    cursor.execute("INSERT INTO " + dbSchema + ".image_description(assortment_id, "
+                                   "image_name, fcontent) VALUES('" + image[0] + "', '" + image[1] +
+                                   "', '" + imageDescription + "')")
+                else:
+                    cursor.execute("INSERT INTO " + dbSchema + ".image_description(assortment_id, prompt_id, "
+                                   "image_name, fcontent) VALUES('" + image[0] + "', '" + promptId + "', '" + image[1] +
+                                   "', '" + imageDescription + "')")
             conn.commit()
+            print(f"Сформировано описание изображения {image[1]} для {organization}")
         except Exception as e:
             print(f": {e}")
 
@@ -368,6 +377,7 @@ def processClientRequests(organization: str):
                                    "', satisfaction = " + str(check) + " WHERE created_at = '" + str(request[0]) +
                                    "' AND organization_id = '" + request[1] + "' AND client = '" + request[2] + "'")
             conn.commit()
+            print(f"Сформирован ответ на обращение для {organization}")
         except Exception as e:
             print(f": {e}")
 
@@ -393,6 +403,13 @@ schedule.every(env.get("python.processing-time", 5)).minutes.do(businessAiProces
 
 class ProcessingAgent(BaseHTTPRequestHandler):
 
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")  # Allow requests from any origin
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        self.end_headers()
+
     def do_GET(self):
         # Debug page
         if self.path.startswith('/debug'):
@@ -416,9 +433,9 @@ class ProcessingAgent(BaseHTTPRequestHandler):
         if params[0].lower() == "publication" and len(params) > 1:
             if len(params) > 2:
                 if len(params) > 3:
-                    generatePublication(unquote(params[1]), params[2], params[3])
+                    generatePublication(unquote(params[1]), unquote(params[2]), unquote(params[3]))
                 else:
-                    generatePublication(unquote(params[1]), params[2])
+                    generatePublication(unquote(params[1]), unquote(params[2]))
             else:
                 generatePublication(unquote(params[1]))
         self.send_response(200)
