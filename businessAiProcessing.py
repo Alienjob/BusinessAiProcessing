@@ -7,18 +7,19 @@ import signal
 import sys
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import unquote, urlparse
-from debug_ui import handle_debug_get, handle_debug_post
 
 import psycopg2 as ps
 import schedule
 from pydantic.v1 import UUID4
 
 from ai_interface import AiInterface
+from debug_ui import handle_debug_get, handle_debug_post
 from environment import Environment
 from mistral import MistralAi
 
 dbConnectionString = None
 __active_community_status = 4
+dbSchemaKey = "python.businessAiSchema"
 env = Environment('business-ai-service')
 dbConnectionError = "База данных недоступна:"
 defaultRatePrompt = "Ваша задача - оценить по 10-бальной шкале эмоциональную окраску сообщения. Необходимо определить насколько автор недоволен предоставленным ему товаром или услугой, высокая, близкая к 10, оценка должна быть в случае ярко выраженного восторга. Нейтральный тон сообщения должен формировать оценку, в диапазоне от 6 до 8, любые негативные эмоции должны существенно влиять на оценку, снижая её значение."
@@ -67,7 +68,7 @@ def load_file_metadata(file_url: str) -> dict:
     """Load all metadata for a file URL from database"""
     try:
         conn = ps.connect(getConnectionString())
-        dbSchema = env.get("python.businessAiSchema", "business_ai")
+        dbSchema = env.get(dbSchemaKey, "business_ai")
         url_hash = get_file_url_hash(file_url)
 
         with conn.cursor() as cursor:
@@ -94,7 +95,7 @@ def store_file_metadata(file_url: str, metadata: dict):
 
     try:
         conn = ps.connect(getConnectionString())
-        dbSchema = env.get("python.businessAiSchema", "business_ai")
+        dbSchema = env.get(dbSchemaKey, "business_ai")
         url_hash = get_file_url_hash(file_url)
 
         with conn.cursor() as cursor:
@@ -125,7 +126,7 @@ def getConnectionString() -> str:
 def getPrompt(organization: str, promptType: int) -> (UUID4, str, int):
     try:
         conn = ps.connect(getConnectionString())
-        dbSchema = env.get("python.businessAiSchema", "business_ai")
+        dbSchema = env.get(dbSchemaKey, "business_ai")
         with conn.cursor() as cursor:
             cursor.execute("SELECT p.id, p.fcontent, p.ai_provider FROM " + dbSchema +
                            ".ai_plans ap inner join " + dbSchema +
@@ -152,7 +153,7 @@ def getPrompt(organization: str, promptType: int) -> (UUID4, str, int):
 def askDisposer(organization: str) -> bool:
     try:
         conn = ps.connect(getConnectionString())
-        dbSchema = env.get("python.businessAiSchema", "business_ai")
+        dbSchema = env.get(dbSchemaKey, "business_ai")
         with conn.cursor() as cursor:
             cursor.execute("SELECT max(p.created_at) FROM " + dbSchema + ".publications p INNER JOIN " + dbSchema +
                            ".organization o ON p.organization_id = o.id WHERE o.strictname = '" + organization +
@@ -167,7 +168,7 @@ def askDisposer(organization: str) -> bool:
 
 def getAssortmentById(assortmentId: str):
     conn = ps.connect(getConnectionString())
-    dbSchema = env.get("python.businessAiSchema", "business_ai")
+    dbSchema = env.get(dbSchemaKey, "business_ai")
     with conn.cursor() as cursor:
         cursor.execute("SELECT a.id, a.fname, a.description FROM " + dbSchema +
                        ".assortment a WHERE a.id = '" + assortmentId + "'")
@@ -175,7 +176,7 @@ def getAssortmentById(assortmentId: str):
 
 def getAssortmentForPublication(organization: str):
     conn = ps.connect(getConnectionString())
-    dbSchema = env.get("python.businessAiSchema", "business_ai")
+    dbSchema = env.get(dbSchemaKey, "business_ai")
     with conn.cursor() as cursor:
         assortments = []
         cursor.execute("SELECT a.id, a.fname, a.description FROM " + dbSchema + ".assortment a INNER JOIN " + dbSchema +
@@ -188,7 +189,7 @@ def getAssortmentForPublication(organization: str):
 
 def getImageNameForAssortment(assortment: UUID4) -> str | None:
     conn = ps.connect(getConnectionString())
-    dbSchema = env.get("python.businessAiSchema", "business_ai")
+    dbSchema = env.get(dbSchemaKey, "business_ai")
     with conn.cursor() as cursor:
         images = []
         cursor.execute("SELECT images FROM " + dbSchema +
@@ -203,7 +204,7 @@ def getImageDescription(assortment: UUID4, imageName: str) -> str | None:
     if imageName is None:
         return None
     conn = ps.connect(getConnectionString())
-    dbSchema = env.get("python.businessAiSchema", "business_ai")
+    dbSchema = env.get(dbSchemaKey, "business_ai")
     with conn.cursor() as cursor:
         cursor.execute("SELECT fcontent FROM " + dbSchema + ".image_description "
                        "WHERE assortment_id = '" + str(assortment) + "' AND image_name = '" + imageName + "'")
@@ -230,7 +231,7 @@ def generatePublication(organization: str, assortmentId: str | None = None,
         return
     try:
         conn = ps.connect(getConnectionString())
-        dbSchema = env.get("python.businessAiSchema", "business_ai")
+        dbSchema = env.get(dbSchemaKey, "business_ai")
         with conn.cursor() as cursor:
             cursor.execute("SELECT id FROM " + dbSchema +
                            ".organization WHERE strictname = '" + organization + "'")
@@ -286,7 +287,7 @@ def debug_describe_image(orgName: str,
 def selectNewAssortments(organization: str):
     try:
         conn = ps.connect(getConnectionString())
-        dbSchema = env.get("python.businessAiSchema", "business_ai")
+        dbSchema = env.get(dbSchemaKey, "business_ai")
         with conn.cursor() as cursor:
             cursor.execute("SELECT a.id, ai.images, a.fname " +
                            "FROM " + dbSchema + ".assortment a INNER JOIN " +  dbSchema +
@@ -322,16 +323,16 @@ def processAssortmentImages(organization: str):
             continue
         try:
             conn = ps.connect(getConnectionString())
-            dbSchema = env.get("python.businessAiSchema", "business_ai")
+            dbSchema = env.get(dbSchemaKey, "business_ai")
             with conn.cursor() as cursor:
                 if promptId is None:
                     cursor.execute("INSERT INTO " + dbSchema + ".image_description(assortment_id, "
                                    "image_name, fcontent) VALUES('" + image[0] + "', '" + image[1] +
-                                   "', '" + imageDescription + "')")
+                                   "', '" + str(imageDescription) + "')")
                 else:
                     cursor.execute("INSERT INTO " + dbSchema + ".image_description(assortment_id, prompt_id, "
                                    "image_name, fcontent) VALUES('" + image[0] + "', '" + promptId + "', '" + image[1] +
-                                   "', '" + imageDescription + "')")
+                                   "', '" + str(imageDescription) + "')")
             conn.commit()
             print(f"Сформировано описание изображения {image[1]} для {organization}")
         except Exception as e:
@@ -340,7 +341,7 @@ def processAssortmentImages(organization: str):
 def selectNewRequests(organization: str):
     try:
         conn = ps.connect(getConnectionString())
-        dbSchema = env.get("python.businessAiSchema", "business_ai")
+        dbSchema = env.get(dbSchemaKey, "business_ai")
         with conn.cursor() as cursor:
             cursor.execute("SELECT r.created_at, r.organization_id, r.client, r.frate, r.platform, r.request_text "
                            "FROM " + dbSchema + ".cust_requests r INNER JOIN " +  dbSchema +
@@ -363,7 +364,7 @@ def processClientRequests(organization: str):
         check = getProvider(checkProviderType).request_rate(request[5], checkPrompt)
         try:
             conn = ps.connect(getConnectionString())
-            dbSchema = env.get("python.businessAiSchema", "business_ai")
+            dbSchema = env.get(dbSchemaKey, "business_ai")
             with conn.cursor() as cursor:
                 if promptId is None:
                     cursor.execute("UPDATE " + dbSchema + ".cust_requests SET fstate = 1, answer_text = '" + answer +
@@ -385,7 +386,7 @@ def businessAiProcessing():
     global __active_community_status
     try:
         conn = ps.connect(getConnectionString())
-        dbSchema = env.get("python.businessAiSchema", "business_ai")
+        dbSchema = env.get(dbSchemaKey, "business_ai")
         with conn.cursor() as cursor:
             cursor.execute("SELECT fname FROM " + dbSchema +
                            ".community WHERE fapp = '" + env.get("python.application.name") +
