@@ -1,5 +1,8 @@
 # Interface for LLM model requests.
+from __future__ import annotations
+
 import enum
+
 
 class AiInterface:
     def getId(self) -> str:

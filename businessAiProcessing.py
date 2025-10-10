@@ -305,7 +305,7 @@ def processAssortmentImages(organization: str):
     (promptId, prompt, providerType) = getPrompt(organization, 0)
     images = selectNewAssortments(organization)
     for image in images:
-        imageUrl = (env.get("python.imagesUrl", "/assortment/images/") + image[0] + "/" + image[1])
+        imageUrl = (env.get("python.imagesUrl", "http://business-ai/hooded/assortment/images/") + image[0] + "/" + image[1])
 
         # Load existing metadata
         file_metadata = load_file_metadata(imageUrl)
@@ -317,8 +317,6 @@ def processAssortmentImages(organization: str):
         if new_metadata:
             store_file_metadata(imageUrl, new_metadata)
 
-        imageUrl = (env.get("python.imagesUrl", "http://business-ai/hooded/assortment/images/") + image[0] + "/" + image[1])
-        imageDescription = getProvider(providerType).describeImage(organization, imageUrl, image[2], prompt, max_tokens)
         if imageDescription is None:
             continue
         try:
