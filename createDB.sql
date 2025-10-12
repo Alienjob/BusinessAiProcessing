@@ -161,6 +161,19 @@ create table business_ai.image_description
     primary key (assortment_id, image_name)
 );
 
+create table business_ai.file_metadata
+(
+    file_url_hash   varchar(32)  not null,
+    metadata_key    varchar(64)  not null,
+    metadata_value  text         not null,
+    file_url        text         not null,
+    created_at      timestamp default current_timestamp,
+    updated_at      timestamp default current_timestamp,
+    primary key (file_url_hash, metadata_key)
+);
+
+create index idx_file_metadata_url_hash on business_ai.file_metadata(file_url_hash);
+
 create table business_ai.org_ai_plans
 (
     org_id    uuid         not null,
@@ -672,3 +685,9 @@ values ('e6567355-b9e3-4491-b0cd-0ed950f68ab8', 'f830339d-2a63-4ceb-994b-be90fa4
         'Ответы на отзывы и вопросы пользователей с помощью искусственного интеллекта<br>Выгоды:<br>' ||
         'Попадание в топ локальной выдачи Яндекса<br>Дополнительный канал без бюджета на рекламу<br>' ||
         'Повышение доверия через отзывы<br>Увеличение входящих звонков и заявок');
+
+-- Insert test file metadata for GigaChat image caching
+INSERT INTO business_ai.file_metadata (file_url_hash, metadata_key, metadata_value, file_url, created_at, updated_at)
+VALUES ('a7de32c793ff3556a3d07abe76e71e31', 'gigachat_file_id', '968ca656-2069-4284-b8ac-e67bb162a00a', 
+        'https://metaphysica-parfums.com/wp-content/uploads/2025/08/5d903ab13fd79a8c8e8dee91b05fa507.jpg', 
+        '2025-09-15 16:19:42.161', '2025-09-15 16:19:42.161');
