@@ -107,6 +107,8 @@ class Environment:
         i = 1
         try:
             path = name.split('.')
+            if self.__getValues() is None:
+                return defaultValue
             result = self.__getValues()[path[0]]
             while i < len(path):
                 if result is None:
