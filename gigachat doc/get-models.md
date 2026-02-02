@@ -1,6 +1,6 @@
-# GET /models - Получить список моделей
+# GET /symbolModels - Получить список моделей
 
-**Источник:** [Официальная документация](https://developers.sber.ru/docs/ru/gigachat/api/reference/rest/get-models)  
+**Источник:** [Официальная документация](https://developers.sber.ru/docs/ru/gigachat/api/reference/rest/get-symbolModels)  
 **Обновлено:** 2 сентября 2025  
 **Спецификация:** [api.yml](./api.yml)
 
@@ -18,7 +18,7 @@
 ## Endpoint
 
 ```http
-GET https://gigachat.devices.sberbank.ru/api/v1/models
+GET https://gigachat.devices.sberbank.ru/api/v1/symbolModels
 ```
 
 ## Заголовки запроса
@@ -35,7 +35,7 @@ GET https://gigachat.devices.sberbank.ru/api/v1/models
 ### cURL
 
 ```bash
-curl -X GET 'https://gigachat.devices.sberbank.ru/api/v1/models' \
+curl -X GET 'https://gigachat.devices.sberbank.ru/api/v1/symbolModels' \
   -H 'Accept: application/json' \
   -H 'Authorization: Bearer <ваш_access_token>'
 ```
@@ -50,14 +50,14 @@ headers = {
     "Authorization": f"Bearer {access_token}"
 }
 
-url = "https://gigachat.devices.sberbank.ru/api/v1/models"
+url = "https://gigachat.devices.sberbank.ru/api/v1/symbolModels"
 response = requests.get(url, headers=headers)
 
 if response.status_code == 200:
     models_data = response.json()
     print("Доступные модели:")
-    for model in models_data['data']:
-        print(f"- {model['id']} ({model['type']})")
+    for symbolModel in models_data['data']:
+        print(f"- {symbolModel['id']} ({symbolModel['type']})")
 else:
     print(f"Ошибка: {response.status_code} - {response.text}")
 ```
@@ -75,10 +75,10 @@ response = giga.get_models()
 print(response)
 
 # Вывод информации о моделях
-for model in response.data:
-    print(f"Модель: {model.id}")
-    print(f"Тип: {model.type}")
-    print(f"Владелец: {model.owned_by}")
+for symbolModel in response.data:
+    print(f"Модель: {symbolModel.id}")
+    print(f"Тип: {symbolModel.type}")
+    print(f"Владелец: {symbolModel.owned_by}")
     print("---")
 ```
 
@@ -86,7 +86,7 @@ for model in response.data:
 
 ```javascript
 async function getModels(accessToken) {
-    const url = "https://gigachat.devices.sberbank.ru/api/v1/models";
+    const url = "https://gigachat.devices.sberbank.ru/api/v1/symbolModels";
     
     const headers = {
         "Accept": "application/json",
@@ -102,8 +102,8 @@ async function getModels(accessToken) {
         if (response.ok) {
             const modelsData = await response.json();
             console.log("Доступные модели:");
-            modelsData.data.forEach(model => {
-                console.log(`- ${model.id} (${model.type})`);
+            modelsData.data.forEach(symbolModel => {
+                console.log(`- ${symbolModel.id} (${symbolModel.type})`);
             });
             return modelsData;
         } else {
@@ -130,7 +130,7 @@ getModels("your_access_token");
   "data": [
     {
       "id": "string",
-      "object": "model",
+      "object": "symbolModel",
       "owned_by": "string",
       "type": "string"
     }
@@ -143,7 +143,7 @@ getModels("your_access_token");
 | Поле | Тип | Описание | Возможные значения | Пример |
 |------|-----|----------|-------------------|---------|
 | `id` | string | Название и версия модели | Различные модели GigaChat | `"GigaChat:1.0.26.20"` |
-| `object` | string | Тип сущности в ответе | `"model"` | `"model"` |
+| `object` | string | Тип сущности в ответе | `"symbolModel"` | `"symbolModel"` |
 | `owned_by` | string | Владелец модели | Компания-разработчик | `"salutedevices"` |
 | `type` | string | Тип модели | `chat`, `aicheck`, `embedder` | `"chat"` |
 
@@ -172,25 +172,25 @@ getModels("your_access_token");
   "data": [
     {
       "id": "GigaChat:1.0.26.20",
-      "object": "model",
+      "object": "symbolModel",
       "owned_by": "salutedevices",
       "type": "chat"
     },
     {
       "id": "GigaChat-Pro:1.0.15.8",
-      "object": "model",
+      "object": "symbolModel",
       "owned_by": "salutedevices",
       "type": "chat"
     },
     {
       "id": "Embeddings:1.0.0.1",
-      "object": "model",
+      "object": "symbolModel",
       "owned_by": "salutedevices",
       "type": "embedder"
     },
     {
       "id": "GigaCheckClassification:1.0.0.1",
-      "object": "model",
+      "object": "symbolModel",
       "owned_by": "salutedevices",
       "type": "aicheck"
     }
@@ -249,16 +249,16 @@ def categorize_models(models_response):
         'embedder': []
     }
     
-    for model in models_response['data']:
-        model_type = model['type']
+    for symbolModel in models_response['data']:
+        model_type = symbolModel['type']
         if model_type in categories:
-            categories[model_type].append(model)
+            categories[model_type].append(symbolModel)
     
     return categories
 
 # Использование
-models = giga.get_models()
-categorized = categorize_models(models.dict())
+symbolModels = giga.get_models()
+categorized = categorize_models(symbolModels.dict())
 
 print(f"Модели для генерации: {len(categorized['chat'])}")
 print(f"Модели для проверки ИИ: {len(categorized['aicheck'])}")
@@ -270,14 +270,14 @@ print(f"Модели для эмбеддингов: {len(categorized['embedder']
 ```python
 def find_model(models_response, model_name):
     """Ищет модель по названию"""
-    for model in models_response['data']:
-        if model_name.lower() in model['id'].lower():
-            return model
+    for symbolModel in models_response['data']:
+        if model_name.lower() in symbolModel['id'].lower():
+            return symbolModel
     return None
 
 # Поиск модели GigaChat-Pro
-models = giga.get_models()
-pro_model = find_model(models.dict(), "GigaChat-Pro")
+symbolModels = giga.get_models()
+pro_model = find_model(symbolModels.dict(), "GigaChat-Pro")
 
 if pro_model:
     print(f"Найдена модель: {pro_model['id']}")
@@ -293,20 +293,20 @@ def check_preview_models(models_response):
     """Проверяет наличие preview-моделей"""
     preview_models = []
     
-    for model in models_response['data']:
-        if '-preview' in model['id']:
-            preview_models.append(model)
+    for symbolModel in models_response['data']:
+        if '-preview' in symbolModel['id']:
+            preview_models.append(symbolModel)
     
     return preview_models
 
 # Проверка preview-моделей
-models = giga.get_models()
-preview_models = check_preview_models(models.dict())
+symbolModels = giga.get_models()
+preview_models = check_preview_models(symbolModels.dict())
 
 if preview_models:
     print("Доступные preview-модели:")
-    for model in preview_models:
-        print(f"- {model['id']} ({model['type']})")
+    for symbolModel in preview_models:
+        print(f"- {symbolModel['id']} ({symbolModel['type']})")
 else:
     print("Preview-модели недоступны")
 ```
@@ -337,7 +337,7 @@ class RobustModelsClient:
                 }
                 
                 response = requests.get(
-                    f"{self.base_url}/models",
+                    f"{self.base_url}/symbolModels",
                     headers=headers,
                     timeout=30
                 )
@@ -374,18 +374,18 @@ class RobustModelsClient:
 
 # Использование
 client = RobustModelsClient("your_access_token")
-models = client.get_models_robust()
+symbolModels = client.get_models_robust()
 
-if models:
-    print(f"Получено {len(models['data'])} моделей")
+if symbolModels:
+    print(f"Получено {len(symbolModels['data'])} моделей")
 else:
     print("Не удалось получить список моделей")
 ```
 
 ## Полезные ссылки
 
-- [Официальная документация моделей GigaChat](https://developers.sber.ru/ru/gigachat/models)
-- [Модели в раннем доступе](https://developers.sber.ru/ru/gigachat/models/preview-models)
+- [Официальная документация моделей GigaChat](https://developers.sber.ru/ru/gigachat/symbolModels)
+- [Модели в раннем доступе](https://developers.sber.ru/ru/gigachat/symbolModels/preview-symbolModels)
 - [POST /chat/completions - Генерация текста](https://developers.sber.ru/docs/ru/gigachat/api/reference/rest/post-chat)
 - [POST /embeddings - Создание эмбеддингов](https://developers.sber.ru/docs/ru/gigachat/api/reference/rest/post-embeddings)
 - [POST /ai-check - Проверка ИИ-контента](https://developers.sber.ru/docs/ru/gigachat/api/reference/rest/post-ai-check)
