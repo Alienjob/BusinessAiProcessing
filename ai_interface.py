@@ -1,14 +1,19 @@
 # Interface for LLM model requests.
+from __future__ import annotations
+
 import enum
+
 
 class AiInterface:
     def getId(self) -> str:
         pass
-    def request_rate(self, request: dict):
+    def request_rate(self, request: str, prompt: str) -> float:
         pass
-    def response_to_request(self, orgName: str, request: str, prompt: str) -> str:
+    def response_to_request(self, orgName: str, request: str, prompt: str, char_limit: int, lower_tier: int = 0) -> str:
         pass
-    def generate_publication(self, imageUrl: str, orgName: str, assortment: str, description: str, prompt: str) -> str:
+    def generate_publication(self, orgName: str, assortment: str, description: str, imageDescription: str, prompt: str,char_limit: int, lower_tier: int = 0) -> str:
+        pass
+    def describeImage(self, orgName: str, imageUrl: str, assortment: str, prompt: str, token_limit: int, lower_tier: int = 0, file_metadata: dict = None) -> tuple[str | None, dict | None]:
         pass
 
 @enum.unique

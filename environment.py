@@ -1,8 +1,10 @@
 import os
-import yaml
+from io import StringIO
+
 import consul
 import requests
-from io import StringIO
+import yaml
+
 
 def getProfileSuffix(profile: str):
     if profile is None or len(profile) < 1 or profile.lower() == 'production':
@@ -10,6 +12,15 @@ def getProfileSuffix(profile: str):
     if profile.lower() == 'development':
         return ',dev'
     return ',' + profile
+
+def deepMerge(dict1: dict, dict2: dict):
+    result = dict1.copy()
+    for key, value in dict2.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deepMerge(result[key], value)
+        else:
+            result[key] = value
+    return result
 
 class Environment:
 
@@ -35,8 +46,8 @@ class Environment:
             self.consul = consul.Consul(host=consulHost, port=consulPort, scheme='http')
         return self.consul
 
-    def __getProfileConsul(self):
-        consulPath = 'config/' + self.name + self.profile + "/data"
+    def __getProfileConsul(self, source):
+        consulPath = 'config/' + source + "/data"
         try:
             result = self.__getConsul().kv.get(consulPath)
             if result is None or result[1] is None:
@@ -46,39 +57,67 @@ class Environment:
             print("Consul connection error ")
             return None
 
-    def __getConfigFileName(self):
-        fileName = self.name
+    def __getConfigFileName(self, fileName):
         if len(self.profile) > 0:
-            fileName = fileName + '.' + self.profile
-        return fileName + ".yaml"
+            fileName = fileName + self.profile
+        return fileName.replace(',', '_') + ".yaml"
+
+    def __mergeConsulValues(self, source):
+        try:
+            if self.values is None:
+                self.values = yaml.safe_load(source)
+            elif source is not None:
+                self.values = deepMerge(self.values, yaml.safe_load(source))
+        except yaml.YAMLError as e:
+            print(f"Error parsing YAML file: {e}")
+
+    def __mergeFileValues(self, source):
+        try:
+            with open(source, 'r') as file:
+                if self.values is None:
+                    self.values = yaml.safe_load(file)
+                else:
+                    values = yaml.safe_load(file)
+                    for key, value in values.items():
+                        self.values[key] = value
+        except FileNotFoundError:
+            pass
+
+    def __process_config(self, name):
+        try:
+            consulConfig = self.__getProfileConsul(name)
+            if consulConfig is None:
+                self.__mergeFileValues(name + '.yaml')
+                if len(self.profile) > 0:
+                    self.__mergeFileValues(self.__getConfigFileName(name))
+            else:
+                self.__mergeConsulValues(consulConfig)
+                if len(self.profile) > 0:
+                    self.__mergeConsulValues(self.__getProfileConsul(name + self.profile))
+        except yaml.YAMLError as e:
+            print(f"Error parsing YAML file: {e}")
 
     def __getValues(self):
         if self.values is None:
-            try:
-                consulConfig = self.__getProfileConsul()
-                if consulConfig is None:
-                    with open(self.__getConfigFileName(), 'r') as file:
-                        self.values = yaml.safe_load(file)
-                else:
-                    self.values = yaml.safe_load(consulConfig)
-            except FileNotFoundError:
-                print(f"Error: Configuration file not found at {self.__getConfigFileName()}")
-            except yaml.YAMLError as e:
-                print(f"Error parsing YAML file: {e}")
+            self.__process_config('application')
+            self.__process_config(self.name)
         return self.values
 
     def get(self, name: str, defaultValue = None):
         i = 1
-        path = name.split('.')
-        result = self.__getValues()[path[0]]
-        while i < len(path):
-            if result is None:
-                break
-            result = result[path[i]]
-            i = i + 1
-        if result is None:
+        try:
+            path = name.split('.')
+            if self.__getValues() is None:
+                return defaultValue
+            result = self.__getValues()[path[0]]
+            while i < len(path):
+                if result is None:
+                    return defaultValue
+                result = result[path[i]]
+                i = i + 1
+            return result
+        except KeyError:
             return defaultValue
-        return result
 
     def __saveValues(self):
         stringToSave = StringIO()
@@ -87,19 +126,19 @@ class Environment:
         try:
             self.__getConsul().kv.put(consulPath, stringToSave.getvalue())
         except requests.exceptions.ConnectionError:
-            with open(self.__getConfigFileName(), 'w') as file:
+            with open(self.__getConfigFileName(self.name), 'w') as file:
                 file.write(stringToSave.getvalue())
 
     def set(self, name: str, value):
         path = name.split('.')
         item = self.__getValues()
         if item is None:
-            item = dict()
+            item = {}
             self.values = item
         for i in range(len(path) - 1):
             element = item[path[i]]
             if element is None:
-                element = dict()
+                element = {}
                 item[path[i]] = element
             item = element
         item[path[len(path) - 1]] = value
