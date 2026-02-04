@@ -66,7 +66,7 @@ class Environment:
         try:
             if self.values is None:
                 self.values = yaml.safe_load(source)
-            else:
+            elif source is not None:
                 self.values = deepMerge(self.values, yaml.safe_load(source))
         except yaml.YAMLError as e:
             print(f"Error parsing YAML file: {e}")
@@ -107,6 +107,8 @@ class Environment:
         i = 1
         try:
             path = name.split('.')
+            if self.__getValues() is None:
+                return defaultValue
             result = self.__getValues()[path[0]]
             while i < len(path):
                 if result is None:

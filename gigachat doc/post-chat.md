@@ -39,7 +39,7 @@ POST https://gigachat.devices.sberbank.ru/api/v1/chat/completions
 
 | Параметр | Тип | Описание | Пример |
 |----------|-----|----------|--------|
-| `model` | string | Название модели для генерации | `"GigaChat"`, `"GigaChat-Pro"`, `"GigaChat-Max"` |
+| `symbolModel` | string | Название модели для генерации | `"GigaChat"`, `"GigaChat-Pro"`, `"GigaChat-Max"` |
 | `messages` | array | Массив сообщений диалога | `[{"role": "user", "content": "Привет!"}]` |
 
 ### Опциональные параметры
@@ -112,7 +112,7 @@ curl -X POST 'https://gigachat.devices.sberbank.ru/api/v1/chat/completions' \
   -H 'Accept: application/json' \
   -H 'Authorization: Bearer <ваш_access_token>' \
   -d '{
-    "model": "GigaChat",
+    "symbolModel": "GigaChat",
     "messages": [
       {
         "role": "user",
@@ -133,7 +133,7 @@ headers = {
 }
 
 payload = {
-    "model": "GigaChat",
+    "symbolModel": "GigaChat",
     "messages": [
         {
             "role": "user",
@@ -170,7 +170,7 @@ response = giga.chat(
     messages=[
         {"role": "user", "content": "Привет! Как дела?"}
     ],
-    model="GigaChat-Pro",
+    symbolModel="GigaChat-Pro",
     temperature=0.7
 )
 print(response.choices[0].message.content)
@@ -180,7 +180,7 @@ print(response.choices[0].message.content)
 
 ```python
 payload = {
-    "model": "GigaChat-Pro",
+    "symbolModel": "GigaChat-Pro",
     "messages": [
         {
             "role": "system",
@@ -211,7 +211,7 @@ def stream_chat(message, access_token):
     }
     
     payload = {
-        "model": "GigaChat",
+        "symbolModel": "GigaChat",
         "messages": [
             {"role": "user", "content": message}
         ],
@@ -256,7 +256,7 @@ file_id = file_response.id
 
 # Используйте файл в запросе
 payload = {
-    "model": "GigaChat",
+    "symbolModel": "GigaChat",
     "messages": [
         {
             "role": "user",
@@ -276,7 +276,7 @@ image_id = image_response.id
 
 # Используйте изображение в запросе
 payload = {
-    "model": "GigaChat",
+    "symbolModel": "GigaChat",
     "messages": [
         {
             "role": "user",
@@ -313,7 +313,7 @@ payload = {
     }
   ],
   "created": 1678878333,
-  "model": "GigaChat:1.0.26.20",
+  "symbolModel": "GigaChat:1.0.26.20",
   "object": "chat.completion",
   "usage": {
     "prompt_tokens": 56,
@@ -333,7 +333,7 @@ payload = {
 | `choices[].message.content` | string | Содержимое ответа модели |
 | `choices[].finish_reason` | string | Причина завершения генерации |
 | `created` | integer | Unix timestamp создания ответа |
-| `model` | string | Идентификатор использованной модели |
+| `symbolModel` | string | Идентификатор использованной модели |
 | `usage` | object | Статистика использования токенов |
 
 ### Причины завершения (finish_reason)
@@ -361,7 +361,7 @@ payload = {
     }
   ],
   "created": 1678878333,
-  "model": "GigaChat:1.0.26.20",
+  "symbolModel": "GigaChat:1.0.26.20",
   "object": "chat.completion",
   "usage": {
     "prompt_tokens": 8,
@@ -383,7 +383,7 @@ payload = {
 
 #### 404 Not Found
 - **Причина:** Указан неверный идентификатор модели
-- **Решение:** Проверьте список доступных моделей через GET /models
+- **Решение:** Проверьте список доступных моделей через GET /symbolModels
 
 #### 422 Validation Error
 - **Причина:** Ошибка валидации параметров
@@ -415,7 +415,7 @@ payload = {
 
 ```python
 payload = {
-    "model": "GigaChat",
+    "symbolModel": "GigaChat",
     "messages": [
         {
             "role": "user",
@@ -435,7 +435,7 @@ payload = {
 
 ```python
 payload = {
-    "model": "GigaChat",
+    "symbolModel": "GigaChat",
     "messages": [
         {
             "role": "user",
@@ -477,14 +477,14 @@ payload = {
 ```python
 # Детерминированная генерация
 payload = {
-    "model": "GigaChat",
+    "symbolModel": "GigaChat",
     "messages": [{"role": "user", "content": "2+2="}],
     "temperature": 0.001
 }
 
 # Творческая генерация
 payload = {
-    "model": "GigaChat",
+    "symbolModel": "GigaChat",
     "messages": [{"role": "user", "content": "Напиши стихотворение"}],
     "temperature": 1.0
 }
@@ -494,7 +494,7 @@ payload = {
 
 ```python
 payload = {
-    "model": "GigaChat",
+    "symbolModel": "GigaChat",
     "messages": [{"role": "user", "content": "Кратко объясни квантовую физику"}],
     "max_tokens": 100,  # Максимум 100 токенов в ответе
     "temperature": 0.7
@@ -505,7 +505,7 @@ payload = {
 
 ```python
 payload = {
-    "model": "GigaChat",
+    "symbolModel": "GigaChat",
     "messages": [{"role": "user", "content": "Перечисли преимущества Python"}],
     "repetition_penalty": 1.1,  # Снижаем повторения
     "temperature": 0.8
@@ -516,16 +516,16 @@ payload = {
 
 ```python
 payload = {
-    "model": "GigaChat-Pro-preview",  # Обратите внимание на суффикс -preview
+    "symbolModel": "GigaChat-Pro-preview",  # Обратите внимание на суффикс -preview
     "messages": [{"role": "user", "content": "Тестируем новые возможности"}]
 }
 ```
 
 ## Полезные ссылки
 
-- [Официальная документация моделей GigaChat](https://developers.sber.ru/ru/gigachat/models)
-- [Модели в раннем доступе](https://developers.sber.ru/ru/gigachat/models/preview-models)
-- [GET /models - Получить список моделей](./get-models.md)
+- [Официальная документация моделей GigaChat](https://developers.sber.ru/ru/gigachat/symbolModels)
+- [Модели в раннем доступе](https://developers.sber.ru/ru/gigachat/symbolModels/preview-symbolModels)
+- [GET /symbolModels - Получить список моделей](./get-symbolModels.md)
 - [POST /oauth - Получить токен доступа](./post-token.md)
 - [Работа с файлами](https://developers.sber.ru/ru/gigachat/guides/working-with-files)
 - [Работа с функциями](https://developers.sber.ru/ru/gigachat/guides/functions/overview)

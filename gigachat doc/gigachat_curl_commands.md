@@ -44,7 +44,7 @@ curl -X POST "https://ngw.devices.sberbank.ru:9443/api/v2/oauth" \
 # Use the access token from Step 1
 ACCESS_TOKEN="YOUR_ACCESS_TOKEN_FROM_STEP_1"
 
-curl -X GET "https://gigachat.devices.sberbank.ru/api/v1/models" \
+curl -X GET "https://gigachat.devices.sberbank.ru/api/v1/symbolModels" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json"
 ```
@@ -56,12 +56,12 @@ curl -X GET "https://gigachat.devices.sberbank.ru/api/v1/models" \
   "data": [
     {
       "id": "GigaChat",
-      "object": "model",
+      "object": "symbolModel",
       "owned_by": "salutedevices"
     },
     {
       "id": "GigaChat-Pro",
-      "object": "model",
+      "object": "symbolModel",
       "owned_by": "salutedevices"
     }
   ]
@@ -71,15 +71,15 @@ curl -X GET "https://gigachat.devices.sberbank.ru/api/v1/models" \
 ## Step 3: Send Chat Message
 
 ```bash
-# Use the access token from Step 1 and a model ID from Step 2
+# Use the access token from Step 1 and a symbolModel ID from Step 2
 ACCESS_TOKEN="YOUR_ACCESS_TOKEN_FROM_STEP_1"
-MODEL_ID="GigaChat"  # or another model from the list
+MODEL_ID="GigaChat"  # or another symbolModel from the list
 
 curl -X POST "https://gigachat.devices.sberbank.ru/api/v1/chat/completions" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "'$MODEL_ID'",
+    "symbolModel": "'$MODEL_ID'",
     "messages": [
       {
         "role": "user",
@@ -105,7 +105,7 @@ curl -X POST "https://gigachat.devices.sberbank.ru/api/v1/chat/completions" \
     }
   ],
   "created": 1640995200,
-  "model": "GigaChat",
+  "symbolModel": "GigaChat",
   "object": "chat.completion",
   "usage": {
     "completion_tokens": 15,
@@ -136,7 +136,7 @@ echo "Token: ${ACCESS_TOKEN:0:20}..." && \
 curl -X POST "https://gigachat.devices.sberbank.ru/api/v1/chat/completions" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"model":"GigaChat","messages":[{"role":"user","content":"Тест API"}],"max_tokens":50}'
+  -d '{"symbolModel":"GigaChat","messages":[{"role":"user","content":"Тест API"}],"max_tokens":50}'
 ```
 
 ## Troubleshooting
