@@ -4,7 +4,7 @@ GigaChat API Testing Script
 
 This script tests your GigaChat credentials by:
 1. Getting an authentication token
-2. Fetching available models
+2. Fetching available symbolModels
 3. Sending a test chat message
 
 Usage:
@@ -82,8 +82,8 @@ class GigaChatTester:
             return False
     
     def get_models(self) -> Optional[Dict[str, Any]]:
-        """Get list of available models."""
-        print("\n📋 Getting available models...")
+        """Get list of available symbolModels."""
+        print("\n📋 Getting available symbolModels...")
         
         if not self.access_token:
             print("❌ No access token. Please authenticate first.")
@@ -95,28 +95,28 @@ class GigaChatTester:
         }
         
         try:
-            response = requests.get(f"{self.base_url}/models", headers=headers, verify=False)
+            response = requests.get(f"{self.base_url}/symbolModels", headers=headers, verify=False)
             response.raise_for_status()
             
             models_data = response.json()
             print("✅ Models retrieved successfully!")
             
             if "data" in models_data:
-                print("Available models:")
-                for model in models_data["data"][:5]:  # Show first 5 models
-                    print(f"  - {model.get('id', 'Unknown')}")
+                print("Available symbolModels:")
+                for symbolModel in models_data["data"][:5]:  # Show first 5 symbolModels
+                    print(f"  - {symbolModel.get('id', 'Unknown')}")
                     
             return models_data
             
         except requests.exceptions.RequestException as e:
-            print(f"❌ Failed to get models: {e}")
+            print(f"❌ Failed to get symbolModels: {e}")
             if hasattr(e, 'response') and e.response:
                 print(f"Response: {e.response.text}")
             return None
     
-    def send_chat_message(self, message: str, model: str = "GigaChat") -> Optional[Dict[str, Any]]:
-        """Send a chat message to the model."""
-        print(f"\n💬 Sending chat message to {model}...")
+    def send_chat_message(self, message: str, symbolModel: str = "GigaChat") -> Optional[Dict[str, Any]]:
+        """Send a chat message to the symbolModel."""
+        print(f"\n💬 Sending chat message to {symbolModel}...")
         
         if not self.access_token:
             print("❌ No access token. Please authenticate first.")
@@ -128,7 +128,7 @@ class GigaChatTester:
         }
         
         data = {
-            "model": model,
+            "symbolModel": symbolModel,
             "messages": [
                 {
                     "role": "user",
@@ -175,13 +175,13 @@ class GigaChatTester:
         if not self.get_auth_token():
             return False
         
-        # Step 2: Get models
+        # Step 2: Get symbolModels
         models_data = self.get_models()
         if not models_data:
             return False
         
         # Step 3: Send chat message
-        # Try to use the first available model, fallback to "GigaChat"
+        # Try to use the first available symbolModel, fallback to "GigaChat"
         model_to_use = "GigaChat"
         if "data" in models_data and len(models_data["data"]) > 0:
             model_to_use = models_data["data"][0].get("id", "GigaChat")

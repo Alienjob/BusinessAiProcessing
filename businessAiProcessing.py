@@ -5,17 +5,16 @@ import datetime
 import random
 import signal
 import sys
+import uuid
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import unquote, urlparse
 
 import psycopg2 as ps
 import schedule
-from pydantic.v1 import UUID4
 
 from ai_interface import AiInterface
 from debug_ui import handle_debug_get, handle_debug_post
 from environment import Environment
-from mistral import MistralAi
 
 dbConnectionString = None
 __active_community_status = 4
@@ -46,6 +45,7 @@ def signal_handler(sig, frame):
 
 def getProvider(providerType: int) -> AiInterface:
     if providerType == 0:
+        from mistral import MistralAi
         return MistralAi()
     elif providerType == 1:
         from gigachat import GigaChatAi
@@ -123,7 +123,7 @@ def getConnectionString() -> str:
         dbConnectionString = env.get("python.datasource.url")
     return dbConnectionString
 
-def getPrompt(organization: str, promptType: int) -> (UUID4, str, int):
+def getPrompt(organization: str, promptType: int) -> tuple[uuid.UUID | None, str, int]:
     try:
         conn = ps.connect(getConnectionString())
         dbSchema = env.get(dbSchemaKey, "business_ai")
@@ -132,8 +132,8 @@ def getPrompt(organization: str, promptType: int) -> (UUID4, str, int):
                            ".ai_plans ap inner join " + dbSchema +
                            ".org_ai_plans op on ap.fname = op.plan_name inner join " + dbSchema +
                            ".organization o on op.org_id = o.id inner join " + dbSchema +
-                           ".prompts p on ap.prompt_id = p.id WHERE o.strictname = '" +
-                           organization + "' AND p.kind = " + str(promptType))
+                           ".prompts p on ap.prompt_id = p.id WHERE o.strictname = %s AND p.kind = %s",
+                           (organization, str(promptType)))
             result = cursor.fetchone()
             if result is None or result[0] is None:
                 if promptType == 0:
@@ -156,8 +156,8 @@ def askDisposer(organization: str) -> bool:
         dbSchema = env.get(dbSchemaKey, "business_ai")
         with conn.cursor() as cursor:
             cursor.execute("SELECT max(p.created_at) FROM " + dbSchema + ".publications p INNER JOIN " + dbSchema +
-                           ".organization o ON p.organization_id = o.id WHERE o.strictname = '" + organization +
-                           "' AND p.fstate = 0")
+                           ".organization o ON p.organization_id = o.id WHERE o.strictname = %s AND p.fstate = %s",
+                           (organization, 0))
             created = cursor.fetchone()
             if created[0] is None:
                 return True
@@ -171,7 +171,7 @@ def getAssortmentById(assortmentId: str):
     dbSchema = env.get(dbSchemaKey, "business_ai")
     with conn.cursor() as cursor:
         cursor.execute("SELECT a.id, a.fname, a.description FROM " + dbSchema +
-                       ".assortment a WHERE a.id = '" + assortmentId + "'")
+                       ".assortment a WHERE a.id = %s", (assortmentId,))
         return cursor.fetchone()
 
 def getAssortmentForPublication(organization: str):
@@ -180,34 +180,34 @@ def getAssortmentForPublication(organization: str):
     with conn.cursor() as cursor:
         assortments = []
         cursor.execute("SELECT a.id, a.fname, a.description FROM " + dbSchema + ".assortment a INNER JOIN " + dbSchema +
-                       ".organization o ON a.manufacturer = o.id WHERE o.strictname = '" + organization + "'")
+                       ".organization o ON a.manufacturer = o.id WHERE o.strictname = %s", (organization,))
         for row in cursor.fetchall():
             assortments.append(row)
         if len(assortments) > 0:
             return assortments[random.randint(0, len(assortments) - 1)]
         return None
 
-def getImageNameForAssortment(assortment: UUID4) -> str | None:
+def getImageNameForAssortment(assortment: uuid.UUID) -> str | None:
     conn = ps.connect(getConnectionString())
     dbSchema = env.get(dbSchemaKey, "business_ai")
     with conn.cursor() as cursor:
         images = []
         cursor.execute("SELECT images FROM " + dbSchema +
-                       ".ass_image WHERE assortment_id = '" + str(assortment) + "'")
+                       ".ass_image WHERE assortment_id = %s", (str(assortment),))
         for row in cursor.fetchall():
             images.append(row[0])
         if len(images) > 0:
             return images[random.randint(0, len(images) - 1)]
         return None
 
-def getImageDescription(assortment: UUID4, imageName: str) -> str | None:
+def getImageDescription(assortmentId: uuid.UUID, imageName: str) -> str | None:
     if imageName is None:
         return None
     conn = ps.connect(getConnectionString())
     dbSchema = env.get(dbSchemaKey, "business_ai")
     with conn.cursor() as cursor:
         cursor.execute("SELECT fcontent FROM " + dbSchema + ".image_description "
-                       "WHERE assortment_id = '" + str(assortment) + "' AND image_name = '" + imageName + "'")
+                       "WHERE assortment_id = %s AND image_name = %s", (str(assortmentId), imageName))
         return cursor.fetchone()
 
 def generatePublication(organization: str, assortmentId: str | None = None,
@@ -224,7 +224,7 @@ def generatePublication(organization: str, assortmentId: str | None = None,
     if imageName is not None:
         imageDescription = getImageDescription(assortment[0], imageName)
     char_limit = env.get("python.max_chars_for_publication", 2500)
-    (promptId, prompt, providerType) = getPrompt(organization, 1)
+    promptId, prompt, providerType = getPrompt(organization, 1)
     publication = getProvider(providerType).generate_publication(organization, assortment[1],
                   assortment[2], imageDescription, prompt, char_limit)
     if publication is None:
@@ -234,22 +234,21 @@ def generatePublication(organization: str, assortmentId: str | None = None,
         dbSchema = env.get(dbSchemaKey, "business_ai")
         with conn.cursor() as cursor:
             cursor.execute("SELECT id FROM " + dbSchema +
-                           ".organization WHERE strictname = '" + organization + "'")
+                           ".organization WHERE strictname = %s", (organization,))
             orgId = cursor.fetchone()
             timeCreated = str(datetime.datetime.now())
             if promptId is None:
                 cursor.execute("INSERT INTO " + dbSchema + ".publications(created_at, organization_id, "
-                               "assortment_id, fcontent, fstate) VALUES('" + timeCreated + "', '" + orgId[0] +
-                               "', '" + assortment[0] + "', '" + publication + "', 0)")
+                               "assortment_id, fcontent, fstate) VALUES(%s, %s, %s, %s, %s)",
+                               (timeCreated, orgId[0], assortment[0], publication, 0))
             else:
                 cursor.execute("INSERT INTO " + dbSchema + ".publications(created_at, organization_id, "
-                               "assortment_id, prompt_id, fcontent, fstate) VALUES('" + timeCreated +
-                               "', '" + orgId[0] + "', '" + assortment[0] + "', '" + promptId +
-                               "', '" + publication + "', 0)")
+                               "assortment_id, prompt_id, fcontent, fstate) VALUES(%s, %s, %s, %s, %s, %s",
+                               (timeCreated, orgId[0], assortment[0], str(promptId), publication, 0))
             if imageName is not None:
                 cursor.execute("INSERT INTO " + dbSchema + ".publication_images(publications_created_at,"
-                               "publications_organization_id, images) VALUES('" + timeCreated +
-                               "', '" + orgId[0] + "', '" + imageName + "')")
+                               "publications_organization_id, images) VALUES(%s, %s, %s, %s)",
+                               (timeCreated, orgId[0], imageName))
             conn.commit()
             print(f"Сформирована публикация для {organization}")
     except Exception as e:
@@ -292,9 +291,9 @@ def selectNewAssortments(organization: str):
             cursor.execute("SELECT a.id, ai.images, a.fname " +
                            "FROM " + dbSchema + ".assortment a INNER JOIN " +  dbSchema +
                            ".ass_image ai ON a.id = ai.assortment_id INNER JOIN " +  dbSchema +
-                           ".organization o ON a.manufacturer = o.id WHERE o.strictname = '" + organization +
-                           "' AND NOT EXISTS (SELECT id.fcontent FROM " +  dbSchema + ".image_description id " +
-                           "WHERE a.id = id.assortment_id AND ai.images = id.image_name)")
+                           ".organization o ON a.manufacturer = o.id WHERE o.strictname = %s AND "
+                           "NOT EXISTS (SELECT d.fcontent FROM " +  dbSchema + ".image_description d " +
+                           "WHERE a.id = d.assortment_id AND ai.images = d.image_name)", (organization,))
             return cursor.fetchall()
     except Exception as e:
         print(f": {e}")
@@ -302,16 +301,18 @@ def selectNewAssortments(organization: str):
 
 def processAssortmentImages(organization: str):
     max_tokens = env.get("python.max_tokens_for_describe_image", 500)
-    (promptId, prompt, providerType) = getPrompt(organization, 0)
+    promptId, prompt, providerType = getPrompt(organization, 0)
     images = selectNewAssortments(organization)
     for image in images:
-        imageUrl = (env.get("python.imagesUrl", "http://business-ai/hooded/assortment/images/") + image[0] + "/" + image[1])
+        imageUrl = (env.get("python.imagesUrl", "http://business-ai/hooded/assortment/images/") +
+                    image[0] + "/" + image[1])
 
         # Load existing metadata
         file_metadata = load_file_metadata(imageUrl)
 
         # Call provider with metadata
-        imageDescription, new_metadata = getProvider(providerType).describeImage(organization, imageUrl, image[2], prompt, max_tokens, file_metadata=file_metadata)
+        imageDescription, new_metadata = getProvider(providerType).describeImage(organization, imageUrl,
+                                                     image[2], prompt, max_tokens, file_metadata=file_metadata)
 
         # Store any new metadata returned by provider
         if new_metadata:
@@ -325,12 +326,12 @@ def processAssortmentImages(organization: str):
             with conn.cursor() as cursor:
                 if promptId is None:
                     cursor.execute("INSERT INTO " + dbSchema + ".image_description(assortment_id, "
-                                   "image_name, fcontent) VALUES('" + image[0] + "', '" + image[1] +
-                                   "', '" + str(imageDescription) + "')")
+                                   "image_name, fcontent) VALUES(%s, %s, %s)",
+                                   (image[0], image[1], str(imageDescription)))
                 else:
                     cursor.execute("INSERT INTO " + dbSchema + ".image_description(assortment_id, prompt_id, "
-                                   "image_name, fcontent) VALUES('" + image[0] + "', '" + promptId + "', '" + image[1] +
-                                   "', '" + str(imageDescription) + "')")
+                                   "image_name, fcontent) VALUES(%s, %s, %s, %s)", (image[0],
+                                    str(promptId), image[1], str(imageDescription)))
             conn.commit()
             print(f"Сформировано описание изображения {image[1]} для {organization}")
         except Exception as e:
@@ -343,8 +344,8 @@ def selectNewRequests(organization: str):
         with conn.cursor() as cursor:
             cursor.execute("SELECT r.created_at, r.organization_id, r.client, r.frate, r.platform, r.request_text "
                            "FROM " + dbSchema + ".cust_requests r INNER JOIN " +  dbSchema +
-                           ".organization o ON r.organization_id = o.id WHERE o.strictname = '" + organization +
-                           "' AND r.fstate = 0")
+                           ".organization o ON r.organization_id = o.id WHERE o.strictname = %s AND r.fstate = %s",
+                           (organization, 0))
             return cursor.fetchall()
     except Exception as e:
         print(f": {e}")
@@ -352,8 +353,8 @@ def selectNewRequests(organization: str):
 
 def processClientRequests(organization: str):
     char_limit = env.get("python.max_chars_for_review", 1000)
-    (promptId, prompt, providerType) = getPrompt(organization, 2)
-    (checkPromptId, checkPrompt, checkProviderType) = getPrompt(organization, 3)
+    promptId, prompt, providerType = getPrompt(organization, 2)
+    checkPromptId, checkPrompt, checkProviderType = getPrompt(organization, 3)
     requests = selectNewRequests(organization)
     for request in requests:
         answer = getProvider(providerType).response_to_request(organization, request[5], prompt, char_limit)
@@ -365,16 +366,16 @@ def processClientRequests(organization: str):
             dbSchema = env.get(dbSchemaKey, "business_ai")
             with conn.cursor() as cursor:
                 if promptId is None:
-                    cursor.execute("UPDATE " + dbSchema + ".cust_requests SET fstate = 1, answer_text = '" + answer +
-                                   "', ai_provider = '" + getProviderName(providerType) + "', satisfaction = " +
-                                   str(check) + " WHERE created_at = '" + str(request[0]) +
-                                   "' AND organization_id = '" + request[1] +
-                                   "' AND client = '" + request[2] + "'")
+                    cursor.execute("UPDATE " + dbSchema + ".cust_requests SET fstate = %s, answer_text = %s, "
+                                   "ai_provider = %s, satisfaction = %s WHERE created_at = %s "
+                                   "AND organization_id = %s AND client = %s", (1, answer,
+                                    getProviderName(providerType), check, request[0],
+                                    request[1], request[2]))
                 else:
-                    cursor.execute("UPDATE " + dbSchema + ".cust_requests SET fstate = 1, answer_text = '" + answer +
-                                   "', prompt_id = '" + promptId + "', ai_provider = '" + getProviderName(providerType) +
-                                   "', satisfaction = " + str(check) + " WHERE created_at = '" + str(request[0]) +
-                                   "' AND organization_id = '" + request[1] + "' AND client = '" + request[2] + "'")
+                    cursor.execute("UPDATE " + dbSchema + ".cust_requests SET fstate = %s, answer_text = %s,"
+                                   "prompt_id = %s, ai_provider = %s, satisfaction = %s WHERE created_at = %s "
+                                   "AND organization_id = %s AND client = %s", (1, answer, str(promptId),
+                                    getProviderName(providerType), check, request[0], request[1], request[2]))
             conn.commit()
             print(f"Сформирован ответ на обращение для {organization}")
         except Exception as e:
@@ -387,8 +388,8 @@ def businessAiProcessing():
         dbSchema = env.get(dbSchemaKey, "business_ai")
         with conn.cursor() as cursor:
             cursor.execute("SELECT fname FROM " + dbSchema +
-                           ".community WHERE fapp = '" + env.get("python.application.name") +
-                           "' AND status = " + str(__active_community_status))
+                           ".community WHERE fapp = %s AND status = %s",
+                           (env.get("python.application.name"), str(__active_community_status)))
             for community in cursor.fetchall():
                 orgName = community[0]
                 processAssortmentImages(orgName)
