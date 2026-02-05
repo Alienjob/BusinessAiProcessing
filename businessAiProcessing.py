@@ -15,6 +15,8 @@ import schedule
 from ai_interface import AiInterface
 from debug_ui import handle_debug_get, handle_debug_post
 from environment import Environment
+from gigachat import GigaChatAi
+from mistral import MistralAi
 
 dbConnectionString = None
 __active_community_status = 4
@@ -45,10 +47,8 @@ def signal_handler(sig, frame):
 
 def getProvider(providerType: int) -> AiInterface:
     if providerType == 0:
-        from mistral import MistralAi
         return MistralAi()
     elif providerType == 1:
-        from gigachat import GigaChatAi
         return GigaChatAi()
     raise Exception("Неизвестный тип провайдера искусственного интеллекта")
 
@@ -354,7 +354,7 @@ def selectNewRequests(organization: str):
 def processClientRequests(organization: str):
     char_limit = env.get("python.max_chars_for_review", 1000)
     promptId, prompt, providerType = getPrompt(organization, 2)
-    checkPromptId, checkPrompt, checkProviderType = getPrompt(organization, 3)
+    _, checkPrompt, checkProviderType = getPrompt(organization, 3)
     requests = selectNewRequests(organization)
     for request in requests:
         answer = getProvider(providerType).response_to_request(organization, request[5], prompt, char_limit)
