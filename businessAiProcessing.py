@@ -2,15 +2,14 @@
 from __future__ import annotations
 
 import datetime
+import psycopg2 as ps
 import random
+import schedule
 import signal
 import sys
 import uuid
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import unquote, urlparse
-
-import psycopg2 as ps
-import schedule
 
 from ai_interface import AiInterface
 from debug_ui import handle_debug_get, handle_debug_post
@@ -47,16 +46,16 @@ def signal_handler(sig, frame):
 
 def getProvider(providerType: int) -> AiInterface:
     if providerType == 0:
-        return MistralAi()
-    elif providerType == 1:
         return GigaChatAi()
+    elif providerType == 1:
+        return MistralAi()
     raise Exception("Неизвестный тип провайдера искусственного интеллекта")
 
 def getProviderName(providerType: int) -> str:
     if providerType == 0:
-        return "Mistral"
-    elif providerType == 1:
         return "GigaChat"
+    elif providerType == 1:
+        return "Mistral"
     raise Exception("Неизвестный тип провайдера искусственного интеллекта")
 
 def get_file_url_hash(file_url: str) -> str:
