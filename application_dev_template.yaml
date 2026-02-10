@@ -1,0 +1,14 @@
+python:
+  application:
+    name: business-ai
+  datasource:
+    url: postgresql://postgres@localhost:65432/postgres
+  imagesUrl: /assortment/images/
+  max_chars_for_review: 1000
+  max_chars_for_publication: 2500
+  max_tokens_for_describe_image: 500
+  mistral-key: Z________________________a
+  processing-time: 5
+  publication:
+    interval: 300
+  gigachat-auth-key: "M________________________=="
