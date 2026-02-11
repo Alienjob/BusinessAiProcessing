@@ -2,17 +2,17 @@
 from __future__ import annotations
 
 import datetime
+import psycopg2 as ps
 import random
+import schedule
 import signal
 import sys
 import uuid
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import unquote, urlparse
 
-import psycopg2 as ps
-import schedule
-
 from ai_interface import AiInterface
+from cron_test_data.seed_test_data import debug_seed_test_data as _debug_seed_test_data
 from debug_ui import handle_debug_get, handle_debug_post
 from environment import Environment
 from gigachat import GigaChatAi
@@ -283,6 +283,13 @@ def debug_describe_image(orgName: str,
 
     return result
 
+def debug_seed_test_data() -> str:
+    return _debug_seed_test_data(getConnectionString, dbSchemaKey, env)
+
+def debug_process_assortment_images(orgName: str) -> str:
+    processAssortmentImages(orgName)
+    return f"Запущена обработка изображений для: {orgName}"
+
 def selectNewAssortments(organization: str):
     try:
         conn = ps.connect(getConnectionString())
@@ -304,8 +311,11 @@ def processAssortmentImages(organization: str):
     promptId, prompt, providerType = getPrompt(organization, 0)
     images = selectNewAssortments(organization)
     for image in images:
-        imageUrl = (env.get("python.imagesUrl", "http://business-ai/hooded/assortment/images/") +
-                    image[0] + "/" + image[1])
+        if image[1].startswith('http') and '://' in image[1]:
+            imageUrl = image[1]
+        else:
+            imageUrl = (env.get("python.imagesUrl", "https://business.t3t.online/hooded/assortment/images/") +
+                        image[0] + "/" + image[1])
 
         # Load existing metadata
         file_metadata = load_file_metadata(imageUrl)
@@ -445,7 +455,8 @@ class ProcessingAgent(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path.startswith('/debug'):
             handle_debug_post(self, defaultPublicationPrompt, defaultImagePrompt, env,
-                              debug_generate_publication, debug_describe_image)
+                              debug_generate_publication, debug_describe_image, debug_seed_test_data,
+                              debug_process_assortment_images)
             return
         # Fallback
         self.do_GET()
