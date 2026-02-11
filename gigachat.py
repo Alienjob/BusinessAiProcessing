@@ -141,7 +141,7 @@ class GigaChatAi(AiInterface):
             return None
     def _chat_completion(self, messages: list, symbolModel: str, max_tokens: int = None) -> str | None:
         """Generic chat completion method"""
-        print(f"provider GigaChat endpoint chat/completions called (symbolModel: {symbolModel})")
+        print(f"provider GigaChat endpoint chat/completions called (model: {symbolModel})")
         
         if not self._get_auth_token():
             print("provider GigaChat endpoint chat/completions response failed (auth)")
@@ -153,7 +153,7 @@ class GigaChatAi(AiInterface):
         }
         
         data = {
-            "symbolModel": symbolModel,
+            "model": symbolModel,
             "messages": messages,
             "temperature": 0.7
         }
