@@ -287,6 +287,10 @@ def debug_describe_image(orgName: str,
 def debug_seed_test_data() -> str:
     return _debug_seed_test_data(getConnectionString, dbSchemaKey, env)
 
+def debug_process_assortment_images(orgName: str) -> str:
+    processAssortmentImages(orgName)
+    return f"Запущена обработка изображений для: {orgName}"
+
 def selectNewAssortments(organization: str):
     try:
         conn = ps.connect(getConnectionString())
@@ -449,7 +453,8 @@ class ProcessingAgent(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path.startswith('/debug'):
             handle_debug_post(self, defaultPublicationPrompt, defaultImagePrompt, env,
-                              debug_generate_publication, debug_describe_image, debug_seed_test_data)
+                              debug_generate_publication, debug_describe_image, debug_seed_test_data,
+                              debug_process_assortment_images)
             return
         # Fallback
         self.do_GET()
