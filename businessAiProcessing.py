@@ -12,8 +12,8 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import unquote, urlparse
 
 from ai_interface import AiInterface
-from debug_ui import handle_debug_get, handle_debug_post
 from cron_test_data.seed_test_data import debug_seed_test_data as _debug_seed_test_data
+from debug_ui import handle_debug_get, handle_debug_post
 from environment import Environment
 from gigachat import GigaChatAi
 from mistral import MistralAi
@@ -47,16 +47,16 @@ def signal_handler(sig, frame):
 
 def getProvider(providerType: int) -> AiInterface:
     if providerType == 0:
-        return GigaChatAi()
-    elif providerType == 1:
         return MistralAi()
+    elif providerType == 1:
+        return GigaChatAi()
     raise Exception("Неизвестный тип провайдера искусственного интеллекта")
 
 def getProviderName(providerType: int) -> str:
     if providerType == 0:
-        return "GigaChat"
-    elif providerType == 1:
         return "Mistral"
+    elif providerType == 1:
+        return "GigaChat"
     raise Exception("Неизвестный тип провайдера искусственного интеллекта")
 
 def get_file_url_hash(file_url: str) -> str:
@@ -314,7 +314,7 @@ def processAssortmentImages(organization: str):
         if image[1].startswith('http') and '://' in image[1]:
             imageUrl = image[1]
         else:
-            imageUrl = (env.get("python.imagesUrl", "http://business-ai/hooded/assortment/images/") +
+            imageUrl = (env.get("python.imagesUrl", "https://business.t3t.online/hooded/assortment/images/") +
                         image[0] + "/" + image[1])
 
         # Load existing metadata
