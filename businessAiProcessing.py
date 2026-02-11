@@ -14,6 +14,7 @@ import schedule
 
 from ai_interface import AiInterface
 from debug_ui import handle_debug_get, handle_debug_post
+from cron_test_data.seed_test_data import debug_seed_test_data as _debug_seed_test_data
 from environment import Environment
 from gigachat import GigaChatAi
 from mistral import MistralAi
@@ -283,6 +284,13 @@ def debug_describe_image(orgName: str,
 
     return result
 
+def debug_seed_test_data() -> str:
+    return _debug_seed_test_data(getConnectionString, dbSchemaKey, env)
+
+def debug_process_assortment_images(orgName: str) -> str:
+    processAssortmentImages(orgName)
+    return f"Запущена обработка изображений для: {orgName}"
+
 def selectNewAssortments(organization: str):
     try:
         conn = ps.connect(getConnectionString())
@@ -445,7 +453,8 @@ class ProcessingAgent(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path.startswith('/debug'):
             handle_debug_post(self, defaultPublicationPrompt, defaultImagePrompt, env,
-                              debug_generate_publication, debug_describe_image)
+                              debug_generate_publication, debug_describe_image, debug_seed_test_data,
+                              debug_process_assortment_images)
             return
         # Fallback
         self.do_GET()
