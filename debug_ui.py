@@ -17,6 +17,7 @@ def _render(self, defaultPublicationPrompt: str, defaultImagePrompt: str, env, v
         'img_token_limit': str(env.get("python.max_tokens_for_describe_image", 500)),
         'imageUrl': DEFAULT_IMAGE_URL,
         'provider_type': '0',  # Default to Mistral
+        'seed_org_name': 'Технологии третьего тысячелетия',
     }
     defaults.update({k: v for k, v in values.items() if v is not None})
 
@@ -70,6 +71,12 @@ def _render(self, defaultPublicationPrompt: str, defaultImagePrompt: str, env, v
     </form>
     {('<h3>Результат загрузки тестовых данных:</h3><pre style="white-space:pre-wrap;">' + esc(seed_result) + '</pre>') if seed_result else ''}
 
+    <form method="post" action="/debug">
+      <input type="hidden" name="action" value="process_assortment_images" />
+      <label>Организация для обработки изображений:<br><input type="text" name="seed_org_name" value="{esc(defaults['seed_org_name'])}" style="width:480px"/></label><br><br>
+      <button type="submit">Обработать изображения ассортимента</button>
+    </form>
+
     </body></html>
     """
 
@@ -84,7 +91,7 @@ def handle_debug_get(self, defaultPublicationPrompt: str, defaultImagePrompt: st
 
 
 def handle_debug_post(self, defaultPublicationPrompt: str, defaultImagePrompt: str, env,
-                      gen_publication_cb, describe_image_cb, seed_test_data_cb):
+                      gen_publication_cb, describe_image_cb, seed_test_data_cb, process_assortment_images_cb):
     length = int(self.headers.get('Content-Length', 0))
     body = self.rfile.read(length).decode('utf-8') if length > 0 else ''
     form = parse_qs(body)
@@ -101,6 +108,7 @@ def handle_debug_post(self, defaultPublicationPrompt: str, defaultImagePrompt: s
         'img_token_limit': (form.get('img_token_limit') or [str(env.get("python.max_tokens_for_describe_image", 500))])[0],
         'imageUrl': (form.get('imageUrl') or [''])[0],
         'provider_type': (form.get('provider_type') or ['0'])[0],
+        'seed_org_name': (form.get('seed_org_name') or ['Технологии третьего тысячелетия'])[0],
     }
 
     outputs = {}
@@ -117,10 +125,15 @@ def handle_debug_post(self, defaultPublicationPrompt: str, defaultImagePrompt: s
         elif action == 'seed_test_data':
             res = seed_test_data_cb()
             outputs['seed_result'] = res or ''
+        elif action == 'process_assortment_images':
+            res = process_assortment_images_cb(values['seed_org_name'])
+            outputs['seed_result'] = res or ''
     except Exception as e:
         if action == 'publication':
             outputs['publication_result'] = f"Ошибка: {e}"
         elif action == 'seed_test_data':
+            outputs['seed_result'] = f"Ошибка: {e}"
+        elif action == 'process_assortment_images':
             outputs['seed_result'] = f"Ошибка: {e}"
         else:
             outputs['describe_result'] = f"Ошибка: {e}"
