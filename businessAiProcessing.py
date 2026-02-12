@@ -13,6 +13,12 @@ from urllib.parse import unquote, urlparse
 
 from ai_interface import AiInterface
 from cron_test_data.seed_test_data import debug_seed_test_data as _debug_seed_test_data
+from debug_logic import (
+    describe_image_debug,
+    generate_publication_debug,
+    load_org_prompts_debug,
+    save_org_prompts_debug,
+)
 from debug_ui import handle_debug_get, handle_debug_post
 from environment import Environment
 from gigachat import GigaChatAi
@@ -262,8 +268,9 @@ def debug_generate_publication(orgName: str,
                                prompt: str,
                                char_limit: int,
                                providerType: int = 0) -> str | None:
-    return getProvider(providerType).generate_publication(orgName, assortmentName, description,
-                                                          imageDescription, prompt, char_limit)
+    return generate_publication_debug(
+        getProvider, orgName, assortmentName, description, imageDescription, prompt, char_limit, providerType
+    )
 
 def debug_describe_image(orgName: str,
                          imageUrl: str,
@@ -271,17 +278,10 @@ def debug_describe_image(orgName: str,
                          prompt: str,
                          token_limit: int,
                          providerType: int = 0) -> str | None:
-    # Load existing metadata
-    file_metadata = load_file_metadata(imageUrl)
-
-    # Call provider with metadata
-    result, new_metadata = getProvider(providerType).describeImage(orgName, imageUrl, assortmentName, prompt, token_limit, file_metadata=file_metadata)
-
-    # Store any new metadata returned by provider
-    if new_metadata:
-        store_file_metadata(imageUrl, new_metadata)
-
-    return result
+    return describe_image_debug(
+        getProvider, load_file_metadata, store_file_metadata, orgName, imageUrl, assortmentName,
+        prompt, token_limit, providerType
+    )
 
 def debug_seed_test_data() -> str:
     return _debug_seed_test_data(getConnectionString, dbSchemaKey, env)
@@ -289,6 +289,16 @@ def debug_seed_test_data() -> str:
 def debug_process_assortment_images(orgName: str) -> str:
     processAssortmentImages(orgName)
     return f"Запущена обработка изображений для: {orgName}"
+
+def debug_load_org_prompts(orgName: str):
+    return load_org_prompts_debug(
+        getConnectionString, dbSchemaKey, env, defaultPublicationPrompt, defaultImagePrompt, orgName
+    )
+
+def debug_save_org_prompts(orgName: str, publication_prompt: str, image_prompt: str, provider_type: int) -> str:
+    return save_org_prompts_debug(
+        getConnectionString, dbSchemaKey, env, orgName, publication_prompt, image_prompt, provider_type
+    )
 
 def selectNewAssortments(organization: str):
     try:
@@ -461,7 +471,7 @@ class ProcessingAgent(BaseHTTPRequestHandler):
         if self.path.startswith('/debug'):
             handle_debug_post(self, defaultPublicationPrompt, defaultImagePrompt, env,
                               debug_generate_publication, debug_describe_image, debug_seed_test_data,
-                              debug_process_assortment_images)
+                              debug_process_assortment_images, debug_load_org_prompts, debug_save_org_prompts)
             return
         # Fallback
         self.do_GET()
